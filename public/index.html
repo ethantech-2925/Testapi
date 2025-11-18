@@ -567,12 +567,22 @@
         });
 
         // Initialize
-        window.addEventListener('DOMContentLoaded', () => {
-            initElements();
-            loadModels();
-            createNewChat();
-            renderChatHistory();
-        });
+      window.addEventListener('DOMContentLoaded', () => {
+    initElements();
+    loadModels();
+    createNewChat();
+    renderChatHistory();
+
+    // Thêm đoạn này
+    chatForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        if (!isViewMode) {
+            const content = messageInput.value.trim();
+            if (content) sendMessage(content);
+        }
+    });
+});
+
     </script>
 </body>
 </html>
