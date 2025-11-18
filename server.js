@@ -29,12 +29,10 @@ const CONFIG = {
   REQUEST_BODY_LIMIT: '50kb',    // Giảm từ 100kb
   
   // Whitelist models được phép sử dụng
-  ALLOWED_MODELS: [
-    'z-ai/glm-4.5-air:free',
-    'openai/gpt-3.5-turbo',
-    'anthropic/claude-instant-1',
-    'meta-llama/llama-3-8b-instruct:free'
-  ],
+ ALLOWED_MODELS: [
+  'z-ai/glm-4.5-air:free',           // ✅ FREE
+  'meta-llama/llama-3-8b-instruct:free' // ✅ FREE
+],
   
   // Roles hợp lệ
   VALID_ROLES: ['user', 'assistant', 'system']
