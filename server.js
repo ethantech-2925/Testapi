@@ -4,6 +4,7 @@ const fetch = require('node-fetch');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const cors = require('cors');
+const path = require('path');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -13,13 +14,20 @@ if (!process.env.OPENROUTER_API_KEY) {
   process.exit(1);
 }
 
-app.use(helmet());
+app.use(helmet({
+  contentSecurityPolicy: false,
+}));
 
-const allowedOrigins = (process.env.ALLOWED_ORIGINS || '').split(',');
-app.use(cors({ origin: allowedOrigins }));
+const allowedOrigins = (process.env.ALLOWED_ORIGINS || '').split(',').filter(Boolean);
+if (allowedOrigins.length > 0) {
+  app.use(cors({ origin: allowedOrigins }));
+} else {
+  app.use(cors());
+}
 
 app.use(rateLimit({ windowMs: 60000, max: 30 }));
 app.use(express.json({ limit: '100kb' }));
+app.use(express.static(path.join(__dirname, 'public')));
 
 app.post('/api/chat', async (req, res) => {
   try {
@@ -44,9 +52,9 @@ app.post('/api/chat', async (req, res) => {
   }
 });
 app.get('/', (req, res) => {
-  res.send('Server is running ✅');
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
 
 
-app.listen(PORT, () => console.log(`Server running on ${PORT}`));
+app.listen(PORT, () => console.log(`Server running on http://localhost:${PORT}`));
