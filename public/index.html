@@ -13,14 +13,13 @@
         .animate-bounce {
             animation: bounce 1s infinite;
         }
-        .animate-spin {
-            animation: spin 1s linear infinite;
-        }
         @keyframes spin {
             from { transform: rotate(0deg); }
             to { transform: rotate(360deg); }
         }
-        /* Typing cursor animation */
+        .animate-spin {
+            animation: spin 1s linear infinite;
+        }
         .typing-cursor {
             display: inline-block;
             width: 2px;
@@ -33,96 +32,195 @@
             0%, 49% { opacity: 1; }
             50%, 100% { opacity: 0; }
         }
+        .sidebar {
+            transition: transform 0.3s ease;
+        }
+        .sidebar-hidden {
+            transform: translateX(-100%);
+        }
+        @media (max-width: 768px) {
+            .sidebar {
+                position: fixed;
+                z-index: 50;
+            }
+        }
     </style>
 </head>
 <body class="bg-gradient-to-br from-slate-50 to-slate-100 min-h-screen">
-    <div id="app" class="container mx-auto px-4 py-8 max-w-4xl">
-        <header class="text-center mb-8">
-            <h1 class="text-4xl font-bold text-slate-800 mb-2">AI Chat Assistant</h1>
-            <p class="text-slate-600">Powered by OpenRouter AI</p>
-        </header>
-
-        <div class="w-full bg-white rounded-2xl shadow-2xl overflow-hidden border border-slate-200">
-            <!-- Header với Model Selector -->
-            <div class="bg-gradient-to-r from-blue-600 to-blue-700 p-4">
-                <div class="flex items-center justify-between mb-2">
-                    <div>
-                        <h2 class="text-white font-semibold text-lg">Trò chuyện với AI</h2>
-                        <p class="text-blue-100 text-sm">Hỏi bất cứ điều gì bạn muốn biết</p>
-                    </div>
-                    <div class="flex items-center gap-2">
-                        <span class="text-white text-sm font-medium">Model:</span>
-                        <select 
-                            id="model-select" 
-                            class="bg-white text-slate-800 px-3 py-2 rounded-lg text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-300 cursor-pointer"
-                        >
-                            <option value="">Đang tải...</option>
-                        </select>
-                    </div>
-                </div>
-                <!-- Model Info -->
-                <div id="model-info" class="text-blue-100 text-xs mt-2 hidden">
-                    <span class="bg-blue-500/30 px-2 py-1 rounded">✓ FREE Model</span>
-                </div>
+    <div class="flex h-screen">
+        <!-- Sidebar - Lịch sử chat -->
+        <div id="sidebar" class="sidebar w-64 bg-white border-r border-slate-200 flex flex-col shadow-lg">
+            <!-- Sidebar Header -->
+            <div class="p-4 border-b border-slate-200">
+                <button 
+                    onclick="createNewChat()"
+                    class="w-full bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-all flex items-center justify-center gap-2"
+                >
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                    </svg>
+                    Chat mới
+                </button>
             </div>
 
+            <!-- Chat History List -->
+            <div class="flex-1 overflow-y-auto p-2" id="chat-history">
+                <p class="text-slate-400 text-sm text-center py-4">Chưa có lịch sử chat</p>
+            </div>
+
+            <!-- Sidebar Footer -->
+            <div class="p-4 border-t border-slate-200">
+                <p class="text-xs text-slate-500 text-center">
+                    <span id="chat-count">0</span>/300 chats
+                </p>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="flex-1 flex flex-col">
+            <!-- Mobile Menu Button -->
+            <button 
+                id="mobile-menu-btn"
+                onclick="toggleSidebar()"
+                class="md:hidden fixed top-4 left-4 z-40 bg-white p-2 rounded-lg shadow-lg"
+            >
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
+                </svg>
+            </button>
+
+            <!-- Header -->
+            <header class="bg-white border-b border-slate-200 p-4 shadow-sm">
+                <div class="max-w-4xl mx-auto">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <h1 class="text-2xl font-bold text-slate-800">AI Chat Assistant</h1>
+                            <p class="text-sm text-slate-600" id="current-chat-title">Chat mới</p>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <span class="text-white text-sm font-medium hidden md:block">Model:</span>
+                            <select 
+                                id="model-select" 
+                                class="bg-blue-600 text-white px-3 py-2 rounded-lg text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-300 cursor-pointer"
+                            >
+                                <option value="">Đang tải...</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </header>
+
             <!-- Messages Area -->
-            <div id="messages" class="h-96 overflow-y-auto p-4 space-y-4 bg-slate-50">
-                <div class="text-center text-slate-400 mt-20" id="empty-state">
-                    <svg class="w-16 h-16 mx-auto mb-4 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-                    </svg>
-                    <p>Bắt đầu cuộc trò chuyện</p>
+            <div class="flex-1 overflow-y-auto p-4 bg-slate-50" id="messages-container">
+                <div class="max-w-4xl mx-auto space-y-4" id="messages">
+                    <div class="text-center text-slate-400 mt-20" id="empty-state">
+                        <svg class="w-16 h-16 mx-auto mb-4 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                        </svg>
+                        <p>Bắt đầu cuộc trò chuyện</p>
+                    </div>
                 </div>
             </div>
 
             <!-- Input Area -->
-            <div class="p-4 bg-white border-t border-slate-200">
-                <form id="chat-form" class="flex gap-2">
-                    <input
-                        type="text"
-                        id="message-input"
-                        placeholder="Nhập tin nhắn..."
-                        class="flex-1 border border-slate-300 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-slate-100 disabled:cursor-not-allowed transition-all"
-                    />
-                    <button
-                        type="submit"
-                        id="send-button"
-                        class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-xl font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-md hover:shadow-lg"
-                    >
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
-                        </svg>
-                    </button>
-                </form>
-                <!-- Clear Button -->
-                <button
-                    id="clear-button"
-                    class="mt-2 text-sm text-slate-500 hover:text-slate-700 transition-colors"
-                    onclick="clearChat()"
-                >
-                    🗑️ Xóa lịch sử chat
-                </button>
+            <div class="bg-white border-t border-slate-200 p-4">
+                <div class="max-w-4xl mx-auto">
+                    <form id="chat-form" class="flex gap-2">
+                        <input
+                            type="text"
+                            id="message-input"
+                            placeholder="Nhập tin nhắn..."
+                            class="flex-1 border border-slate-300 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-slate-100 disabled:cursor-not-allowed transition-all"
+                        />
+                        <button
+                            type="submit"
+                            id="send-button"
+                            class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-xl font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-md hover:shadow-lg"
+                        >
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                            </svg>
+                        </button>
+                    </form>
+                    <!-- View Mode Notice -->
+                    <div id="view-mode-notice" class="hidden mt-2 text-sm text-amber-600 bg-amber-50 px-4 py-2 rounded-lg">
+                        📖 Đang xem lịch sử - Không thể chat trong chế độ này
+                    </div>
+                </div>
             </div>
         </div>
     </div>
 
     <script>
         const messagesDiv = document.getElementById('messages');
+        const messagesContainer = document.getElementById('messages-container');
         const emptyState = document.getElementById('empty-state');
         const chatForm = document.getElementById('chat-form');
         const messageInput = document.getElementById('message-input');
         const sendButton = document.getElementById('send-button');
         const modelSelect = document.getElementById('model-select');
-        const modelInfo = document.getElementById('model-info');
+        const chatHistory = document.getElementById('chat-history');
+        const chatCount = document.getElementById('chat-count');
+        const currentChatTitle = document.getElementById('current-chat-title');
+        const viewModeNotice = document.getElementById('view-mode-notice');
         
         let messages = [];
         let isLoading = false;
         let availableModels = [];
-        let currentTypingElement = null;
-        let typingInterval = null;
+        let currentChatId = null;
+        let isViewMode = false; // Chế độ xem lịch sử
+        const MAX_CHATS = 300;
+        const STORAGE_KEY = 'ai_chat_history';
 
-        // Load available models
+        // Chat storage structure
+        class ChatStorage {
+            static getAllChats() {
+                const data = localStorage.getItem(STORAGE_KEY);
+                return data ? JSON.parse(data) : [];
+            }
+
+            static saveChat(chat) {
+                let chats = this.getAllChats();
+                
+                // Limit to MAX_CHATS
+                if (chats.length >= MAX_CHATS) {
+                    chats = chats.slice(-MAX_CHATS + 1);
+                }
+                
+                const existingIndex = chats.findIndex(c => c.id === chat.id);
+                if (existingIndex >= 0) {
+                    chats[existingIndex] = chat;
+                } else {
+                    chats.push(chat);
+                }
+                
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(chats));
+                return chat;
+            }
+
+            static getChat(id) {
+                const chats = this.getAllChats();
+                return chats.find(c => c.id === id);
+            }
+
+            static deleteChat(id) {
+                let chats = this.getAllChats();
+                chats = chats.filter(c => c.id !== id);
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(chats));
+            }
+
+            static getChatTitle(messages) {
+                if (!messages || messages.length === 0) return 'Chat mới';
+                const firstUserMessage = messages.find(m => m.role === 'user');
+                if (!firstUserMessage) return 'Chat mới';
+                
+                let title = firstUserMessage.content.substring(0, 50);
+                if (firstUserMessage.content.length > 50) title += '...';
+                return title;
+            }
+        }
+
+        // Load models
         async function loadModels() {
             try {
                 const response = await fetch('/api/models');
@@ -131,26 +229,16 @@
                 availableModels = data.models || [];
                 const defaultModel = data.default;
 
-                // Populate select
                 modelSelect.innerHTML = '';
                 availableModels.forEach(model => {
                     const option = document.createElement('option');
                     option.value = model;
-                    
-                    // Format model name
                     const modelName = model.split('/')[1].replace(':free', '').replace(/-/g, ' ');
                     option.textContent = modelName.toUpperCase();
-                    
-                    if (model === defaultModel) {
-                        option.selected = true;
-                    }
-                    
+                    if (model === defaultModel) option.selected = true;
                     modelSelect.appendChild(option);
                 });
 
-                // Show model info
-                modelInfo.classList.remove('hidden');
-                
                 console.log('✅ Loaded models:', availableModels);
             } catch (error) {
                 console.error('❌ Failed to load models:', error);
@@ -158,12 +246,148 @@
             }
         }
 
-        // Update model info when selection changes
-        modelSelect.addEventListener('change', () => {
-            const selectedModel = modelSelect.value;
-            console.log('📝 Selected model:', selectedModel);
-        });
+        // Render chat history
+        function renderChatHistory() {
+            const chats = ChatStorage.getAllChats();
+            chatCount.textContent = chats.length;
 
+            if (chats.length === 0) {
+                chatHistory.innerHTML = '<p class="text-slate-400 text-sm text-center py-4">Chưa có lịch sử chat</p>';
+                return;
+            }
+
+            // Sort by timestamp, newest first
+            chats.sort((a, b) => b.timestamp - a.timestamp);
+
+            chatHistory.innerHTML = chats.map(chat => {
+                const title = ChatStorage.getChatTitle(chat.messages);
+                const date = new Date(chat.timestamp).toLocaleDateString('vi-VN', {
+                    day: '2-digit',
+                    month: '2-digit',
+                    year: '2-digit'
+                });
+                const isActive = chat.id === currentChatId;
+
+                return `
+                    <div class="group relative mb-1 ${isActive ? 'bg-blue-50' : 'hover:bg-slate-50'} rounded-lg transition-colors">
+                        <button 
+                            onclick="loadChat('${chat.id}')"
+                            class="w-full text-left p-3 rounded-lg ${isActive ? 'text-blue-600' : 'text-slate-700'}"
+                        >
+                            <div class="flex items-start justify-between gap-2">
+                                <div class="flex-1 min-w-0">
+                                    <p class="text-sm font-medium truncate">${escapeHtml(title)}</p>
+                                    <p class="text-xs text-slate-500 mt-1">${date} • ${chat.messages.length} tin</p>
+                                </div>
+                                <button 
+                                    onclick="event.stopPropagation(); deleteChat('${chat.id}')"
+                                    class="opacity-0 group-hover:opacity-100 text-red-500 hover:text-red-700 transition-opacity p-1"
+                                    title="Xóa chat"
+                                >
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                    </svg>
+                                </button>
+                            </div>
+                        </button>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // Create new chat
+        function createNewChat() {
+            currentChatId = 'chat_' + Date.now();
+            messages = [];
+            isViewMode = false;
+            
+            messagesDiv.innerHTML = `
+                <div class="text-center text-slate-400 mt-20" id="empty-state">
+                    <svg class="w-16 h-16 mx-auto mb-4 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                    </svg>
+                    <p>Bắt đầu cuộc trò chuyện</p>
+                </div>
+            `;
+            
+            currentChatTitle.textContent = 'Chat mới';
+            messageInput.disabled = false;
+            sendButton.disabled = false;
+            modelSelect.disabled = false;
+            viewModeNotice.classList.add('hidden');
+            messageInput.focus();
+            renderChatHistory();
+
+            // Close sidebar on mobile
+            if (window.innerWidth < 768) {
+                document.getElementById('sidebar').classList.add('sidebar-hidden');
+            }
+        }
+
+        // Load existing chat (VIEW MODE)
+        function loadChat(chatId) {
+            const chat = ChatStorage.getChat(chatId);
+            if (!chat) return;
+
+            currentChatId = chatId;
+            messages = [...chat.messages]; // Copy messages
+            isViewMode = true; // Enable view mode
+
+            // Render messages
+            messagesDiv.innerHTML = '';
+            messages.forEach(msg => {
+                addMessage(msg.role, msg.content, false);
+            });
+
+            // Update UI for view mode
+            currentChatTitle.textContent = '📖 ' + ChatStorage.getChatTitle(chat.messages);
+            messageInput.disabled = true;
+            sendButton.disabled = true;
+            modelSelect.disabled = true;
+            viewModeNotice.classList.remove('hidden');
+            
+            renderChatHistory();
+
+            // Close sidebar on mobile
+            if (window.innerWidth < 768) {
+                document.getElementById('sidebar').classList.add('sidebar-hidden');
+            }
+        }
+
+        // Delete chat
+        function deleteChat(chatId) {
+            if (!confirm('Bạn có chắc muốn xóa đoạn chat này?')) return;
+            
+            ChatStorage.deleteChat(chatId);
+            
+            if (currentChatId === chatId) {
+                createNewChat();
+            }
+            
+            renderChatHistory();
+        }
+
+        // Save current chat
+        function saveCurrentChat() {
+            if (!currentChatId || messages.length === 0 || isViewMode) return;
+
+            const chat = {
+                id: currentChatId,
+                messages: messages,
+                timestamp: Date.now(),
+                model: modelSelect.value
+            };
+
+            ChatStorage.saveChat(chat);
+            renderChatHistory();
+        }
+
+        // Toggle sidebar (mobile)
+        function toggleSidebar() {
+            document.getElementById('sidebar').classList.toggle('sidebar-hidden');
+        }
+
+        // Add message
         function addMessage(role, content, typed = false) {
             const time = new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
             const messageDiv = document.createElement('div');
@@ -192,11 +416,9 @@
             }
 
             messagesDiv.appendChild(messageDiv);
-            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
 
-            // If typed effect for assistant
             if (typed && role === 'assistant') {
-                currentTypingElement = textP;
                 typeText(content, textP);
             } else {
                 textP.textContent = content;
@@ -205,7 +427,7 @@
             return textP;
         }
 
-        // Typing animation effect
+        // Typing animation
         async function typeText(text, element) {
             element.innerHTML = '';
             const cursor = document.createElement('span');
@@ -214,27 +436,21 @@
 
             const chars = text.split('');
             let currentText = '';
-            
-            // Speed: 20-30ms per character (adjustable)
-            const typingSpeed = 20;
+            const typingSpeed = 25;
 
             for (let i = 0; i < chars.length; i++) {
                 currentText += chars[i];
                 element.textContent = currentText;
                 element.appendChild(cursor);
-                
-                // Scroll to bottom while typing
-                messagesDiv.scrollTop = messagesDiv.scrollHeight;
-                
-                // Wait before next character
+                messagesContainer.scrollTop = messagesContainer.scrollHeight;
                 await new Promise(resolve => setTimeout(resolve, typingSpeed));
             }
 
-            // Remove cursor when done
             cursor.remove();
             element.textContent = currentText;
         }
 
+        // Show/hide loading
         function showLoading() {
             const loadingDiv = document.createElement('div');
             loadingDiv.id = 'loading';
@@ -249,14 +465,12 @@
                 </div>
             `;
             messagesDiv.appendChild(loadingDiv);
-            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
         }
 
         function hideLoading() {
             const loadingDiv = document.getElementById('loading');
-            if (loadingDiv) {
-                loadingDiv.remove();
-            }
+            if (loadingDiv) loadingDiv.remove();
         }
 
         function escapeHtml(text) {
@@ -265,23 +479,9 @@
             return div.innerHTML;
         }
 
-        function clearChat() {
-            if (confirm('Bạn có chắc muốn xóa toàn bộ lịch sử chat?')) {
-                messages = [];
-                messagesDiv.innerHTML = `
-                    <div class="text-center text-slate-400 mt-20" id="empty-state">
-                        <svg class="w-16 h-16 mx-auto mb-4 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-                        </svg>
-                        <p>Bắt đầu cuộc trò chuyện</p>
-                    </div>
-                `;
-                console.log('🗑️ Chat cleared');
-            }
-        }
-
+        // Send message
         async function sendMessage(content) {
-            if (!content.trim() || isLoading) return;
+            if (!content.trim() || isLoading || isViewMode) return;
 
             const selectedModel = modelSelect.value;
             if (!selectedModel) {
@@ -296,6 +496,7 @@
 
             addMessage('user', content, false);
             messages.push({ role: 'user', content });
+            saveCurrentChat();
 
             showLoading();
 
@@ -317,22 +518,15 @@
                 }
 
                 const data = await response.json();
-                
-                // Handle errors from API
-                if (data.error) {
-                    throw new Error(data.error);
-                }
+                if (data.error) throw new Error(data.error);
 
                 const botText = data?.choices?.[0]?.message?.content || 'Không có phản hồi';
-
-                // Add message with typing effect
                 addMessage('assistant', botText, true);
                 messages.push({ role: 'assistant', content: botText });
+                
+                saveCurrentChat();
 
-                console.log('✅ Response received:', {
-                    model: selectedModel,
-                    tokens: data.usage?.total_tokens
-                });
+                console.log('✅ Response received');
             } catch (error) {
                 hideLoading();
                 console.error('❌ Error:', error);
@@ -347,18 +541,20 @@
             }
         }
 
+        // Event listeners
         chatForm.addEventListener('submit', (e) => {
             e.preventDefault();
-            const content = messageInput.value.trim();
-            if (content) {
-                sendMessage(content);
+            if (!isViewMode) {
+                const content = messageInput.value.trim();
+                if (content) sendMessage(content);
             }
         });
 
-        // Load models on page load
+        // Initialize
         window.addEventListener('DOMContentLoaded', () => {
             loadModels();
-            messageInput.focus();
+            createNewChat();
+            renderChatHistory();
         });
     </script>
 </body>
