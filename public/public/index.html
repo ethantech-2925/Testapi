@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Chat Assistant</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-5px); }
+        }
+        .animate-bounce {
+            animation: bounce 1s infinite;
+        }
+        .animate-spin {
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-slate-50 to-slate-100 min-h-screen">
+    <div id="app" class="container mx-auto px-4 py-8 max-w-4xl">
+        <header class="text-center mb-8">
+            <h1 class="text-4xl font-bold text-slate-800 mb-2">AI Chat Assistant</h1>
+            <p class="text-slate-600">Powered by OpenRouter AI</p>
+        </header>
+
+        <div class="w-full bg-white rounded-2xl shadow-2xl overflow-hidden border border-slate-200">
+            <!-- Header với Model Selector -->
+            <div class="bg-gradient-to-r from-blue-600 to-blue-700 p-4">
+                <div class="flex items-center justify-between mb-2">
+                    <div>
+                        <h2 class="text-white font-semibold text-lg">Trò chuyện với AI</h2>
+                        <p class="text-blue-100 text-sm">Hỏi bất cứ điều gì bạn muốn biết</p>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span class="text-white text-sm font-medium">Model:</span>
+                        <select 
+                            id="model-select" 
+                            class="bg-white text-slate-800 px-3 py-2 rounded-lg text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-300 cursor-pointer"
+                        >
+                            <option value="">Đang tải...</option>
+                        </select>
+                    </div>
+                </div>
+                <!-- Model Info -->
+                <div id="model-info" class="text-blue-100 text-xs mt-2 hidden">
+                    <span class="bg-blue-500/30 px-2 py-1 rounded">✓ FREE Model</span>
+                </div>
+            </div>
+
+            <!-- Messages Area -->
+            <div id="messages" class="h-96 overflow-y-auto p-4 space-y-4 bg-slate-50">
+                <div class="text-center text-slate-400 mt-20" id="empty-state">
+                    <svg class="w-16 h-16 mx-auto mb-4 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                    </svg>
+                    <p>Bắt đầu cuộc trò chuyện</p>
+                </div>
+            </div>
+
+            <!-- Input Area -->
+            <div class="p-4 bg-white border-t border-slate-200">
+                <form id="chat-form" class="flex gap-2">
+                    <input
+                        type="text"
+                        id="message-input"
+                        placeholder="Nhập tin nhắn..."
+                        class="flex-1 border border-slate-300 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-slate-100 disabled:cursor-not-allowed transition-all"
+                    />
+                    <button
+                        type="submit"
+                        id="send-button"
+                        class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-xl font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-md hover:shadow-lg"
+                    >
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                        </svg>
+                    </button>
+                </form>
+                <!-- Clear Button -->
+                <button
+                    id="clear-button"
+                    class="mt-2 text-sm text-slate-500 hover:text-slate-700 transition-colors"
+                    onclick="clearChat()"
+                >
+                    🗑️ Xóa lịch sử chat
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const messagesDiv = document.getElementById('messages');
+        const emptyState = document.getElementById('empty-state');
+        const chatForm = document.getElementById('chat-form');
+        const messageInput = document.getElementById('message-input');
+        const sendButton = document.getElementById('send-button');
+        const modelSelect = document.getElementById('model-select');
+        const modelInfo = document.getElementById('model-info');
+        
+        let messages = [];
+        let isLoading = false;
+        let availableModels = [];
+
+        // Load available models
+        async function loadModels() {
+            try {
+                const response = await fetch('/api/models');
+                const data = await response.json();
+                
+                availableModels = data.models || [];
+                const defaultModel = data.default;
+
+                // Populate select
+                modelSelect.innerHTML = '';
+                availableModels.forEach(model => {
+                    const option = document.createElement('option');
+                    option.value = model;
+                    
+                    // Format model name
+                    const modelName = model.split('/')[1].replace(':free', '').replace(/-/g, ' ');
+                    option.textContent = modelName.toUpperCase();
+                    
+                    if (model === defaultModel) {
+                        option.selected = true;
+                    }
+                    
+                    modelSelect.appendChild(option);
+                });
+
+                // Show model info
+                modelInfo.classList.remove('hidden');
+                
+                console.log('✅ Loaded models:', availableModels);
+            } catch (error) {
+                console.error('❌ Failed to load models:', error);
+                modelSelect.innerHTML = '<option value="">Error loading models</option>';
+            }
+        }
+
+        // Update model info when selection changes
+        modelSelect.addEventListener('change', () => {
+            const selectedModel = modelSelect.value;
+            console.log('📝 Selected model:', selectedModel);
+        });
+
+        function addMessage(role, content) {
+            const time = new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `flex ${role === 'user' ? 'justify-end' : 'justify-start'}`;
+
+            const isUser = role === 'user';
+            const bgColor = isUser ? 'bg-blue-600 text-white rounded-br-none' : 'bg-white text-slate-800 border border-slate-200 rounded-bl-none';
+            const timeColor = isUser ? 'text-blue-100' : 'text-slate-400';
+
+            messageDiv.innerHTML = `
+                <div class="max-w-xs lg:max-w-md xl:max-w-lg px-4 py-3 rounded-2xl shadow-sm ${bgColor}">
+                    <p class="whitespace-pre-wrap break-words">${escapeHtml(content)}</p>
+                    <span class="text-xs mt-1 block ${timeColor}">${time}</span>
+                </div>
+            `;
+
+            if (emptyState) {
+                emptyState.remove();
+            }
+
+            messagesDiv.appendChild(messageDiv);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+
+        function showLoading() {
+            const loadingDiv = document.createElement('div');
+            loadingDiv.id = 'loading';
+            loadingDiv.className = 'flex justify-start';
+            loadingDiv.innerHTML = `
+                <div class="bg-white text-slate-800 px-4 py-3 rounded-2xl rounded-bl-none shadow-sm border border-slate-200">
+                    <div class="flex space-x-2">
+                        <div class="w-2 h-2 bg-slate-400 rounded-full animate-bounce"></div>
+                        <div class="w-2 h-2 bg-slate-400 rounded-full animate-bounce" style="animation-delay: 0.2s"></div>
+                        <div class="w-2 h-2 bg-slate-400 rounded-full animate-bounce" style="animation-delay: 0.4s"></div>
+                    </div>
+                </div>
+            `;
+            messagesDiv.appendChild(loadingDiv);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+
+        function hideLoading() {
+            const loadingDiv = document.getElementById('loading');
+            if (loadingDiv) {
+                loadingDiv.remove();
+            }
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function clearChat() {
+            if (confirm('Bạn có chắc muốn xóa toàn bộ lịch sử chat?')) {
+                messages = [];
+                messagesDiv.innerHTML = `
+                    <div class="text-center text-slate-400 mt-20" id="empty-state">
+                        <svg class="w-16 h-16 mx-auto mb-4 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                        </svg>
+                        <p>Bắt đầu cuộc trò chuyện</p>
+                    </div>
+                `;
+                console.log('🗑️ Chat cleared');
+            }
+        }
+
+        async function sendMessage(content) {
+            if (!content.trim() || isLoading) return;
+
+            const selectedModel = modelSelect.value;
+            if (!selectedModel) {
+                alert('Vui lòng chọn model AI!');
+                return;
+            }
+
+            isLoading = true;
+            messageInput.disabled = true;
+            sendButton.disabled = true;
+            modelSelect.disabled = true;
+
+            addMessage('user', content);
+            messages.push({ role: 'user', content });
+
+            showLoading();
+
+            try {
+                const response = await fetch('/api/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        model: selectedModel,
+                        messages: messages
+                    })
+                });
+
+                hideLoading();
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || `HTTP error: ${response.status}`);
+                }
+
+                const data = await response.json();
+                
+                // Handle errors from API
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+
+                const botText = data?.choices?.[0]?.message?.content || 'Không có phản hồi';
+
+                addMessage('assistant', botText);
+                messages.push({ role: 'assistant', content: botText });
+
+                console.log('✅ Response received:', {
+                    model: selectedModel,
+                    tokens: data.usage?.total_tokens
+                });
+            } catch (error) {
+                hideLoading();
+                console.error('❌ Error:', error);
+                addMessage('assistant', '❌ Lỗi: ' + error.message);
+            } finally {
+                isLoading = false;
+                messageInput.disabled = false;
+                sendButton.disabled = false;
+                modelSelect.disabled = false;
+                messageInput.value = '';
+                messageInput.focus();
+            }
+        }
+
+        chatForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const content = messageInput.value.trim();
+            if (content) {
+                sendMessage(content);
+            }
+        });
+
+        // Load models on page load
+        window.addEventListener('DOMContentLoaded', () => {
+            loadModels();
+            messageInput.focus();
+        });
+    </script>
+</body>
+</html>
