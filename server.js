@@ -31,7 +31,7 @@ const CONFIG = {
   // Whitelist models được phép sử dụng
  ALLOWED_MODELS: [
   'z-ai/glm-4.5-air:free',           // ✅ FREE
-  'meta-llama/llama-3-8b-instruct:free' // ✅ FREE
+  'qwen/qwen2.5-vl-32b-instruct:free' // ✅ FREE
 ],
   
   // Roles hợp lệ
