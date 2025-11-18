@@ -557,14 +557,7 @@
             }
         }
 
-        // Event listeners
-        chatForm.addEventListener('submit', (e) => {
-            e.preventDefault();
-            if (!isViewMode) {
-                const content = messageInput.value.trim();
-                if (content) sendMessage(content);
-            }
-        });
+       
 
         // Initialize
       window.addEventListener('DOMContentLoaded', () => {
