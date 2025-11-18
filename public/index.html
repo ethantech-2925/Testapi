@@ -20,6 +20,19 @@
             from { transform: rotate(0deg); }
             to { transform: rotate(360deg); }
         }
+        /* Typing cursor animation */
+        .typing-cursor {
+            display: inline-block;
+            width: 2px;
+            height: 1em;
+            background-color: currentColor;
+            margin-left: 2px;
+            animation: blink 1s infinite;
+        }
+        @keyframes blink {
+            0%, 49% { opacity: 1; }
+            50%, 100% { opacity: 0; }
+        }
     </style>
 </head>
 <body class="bg-gradient-to-br from-slate-50 to-slate-100 min-h-screen">
@@ -106,6 +119,8 @@
         let messages = [];
         let isLoading = false;
         let availableModels = [];
+        let currentTypingElement = null;
+        let typingInterval = null;
 
         // Load available models
         async function loadModels() {
@@ -149,7 +164,7 @@
             console.log('📝 Selected model:', selectedModel);
         });
 
-        function addMessage(role, content) {
+        function addMessage(role, content, typed = false) {
             const time = new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
             const messageDiv = document.createElement('div');
             messageDiv.className = `flex ${role === 'user' ? 'justify-end' : 'justify-start'}`;
@@ -158,12 +173,19 @@
             const bgColor = isUser ? 'bg-blue-600 text-white rounded-br-none' : 'bg-white text-slate-800 border border-slate-200 rounded-bl-none';
             const timeColor = isUser ? 'text-blue-100' : 'text-slate-400';
 
-            messageDiv.innerHTML = `
-                <div class="max-w-xs lg:max-w-md xl:max-w-lg px-4 py-3 rounded-2xl shadow-sm ${bgColor}">
-                    <p class="whitespace-pre-wrap break-words">${escapeHtml(content)}</p>
-                    <span class="text-xs mt-1 block ${timeColor}">${time}</span>
-                </div>
-            `;
+            const contentDiv = document.createElement('div');
+            contentDiv.className = `max-w-xs lg:max-w-md xl:max-w-lg px-4 py-3 rounded-2xl shadow-sm ${bgColor}`;
+            
+            const textP = document.createElement('p');
+            textP.className = 'whitespace-pre-wrap break-words';
+            
+            const timeSpan = document.createElement('span');
+            timeSpan.className = `text-xs mt-1 block ${timeColor}`;
+            timeSpan.textContent = time;
+
+            contentDiv.appendChild(textP);
+            contentDiv.appendChild(timeSpan);
+            messageDiv.appendChild(contentDiv);
 
             if (emptyState) {
                 emptyState.remove();
@@ -171,6 +193,46 @@
 
             messagesDiv.appendChild(messageDiv);
             messagesDiv.scrollTop = messagesDiv.scrollHeight;
+
+            // If typed effect for assistant
+            if (typed && role === 'assistant') {
+                currentTypingElement = textP;
+                typeText(content, textP);
+            } else {
+                textP.textContent = content;
+            }
+
+            return textP;
+        }
+
+        // Typing animation effect
+        async function typeText(text, element) {
+            element.innerHTML = '';
+            const cursor = document.createElement('span');
+            cursor.className = 'typing-cursor';
+            element.appendChild(cursor);
+
+            const chars = text.split('');
+            let currentText = '';
+            
+            // Speed: 20-30ms per character (adjustable)
+            const typingSpeed = 25;
+
+            for (let i = 0; i < chars.length; i++) {
+                currentText += chars[i];
+                element.textContent = currentText;
+                element.appendChild(cursor);
+                
+                // Scroll to bottom while typing
+                messagesDiv.scrollTop = messagesDiv.scrollHeight;
+                
+                // Wait before next character
+                await new Promise(resolve => setTimeout(resolve, typingSpeed));
+            }
+
+            // Remove cursor when done
+            cursor.remove();
+            element.textContent = currentText;
         }
 
         function showLoading() {
@@ -232,7 +294,7 @@
             sendButton.disabled = true;
             modelSelect.disabled = true;
 
-            addMessage('user', content);
+            addMessage('user', content, false);
             messages.push({ role: 'user', content });
 
             showLoading();
@@ -263,7 +325,8 @@
 
                 const botText = data?.choices?.[0]?.message?.content || 'Không có phản hồi';
 
-                addMessage('assistant', botText);
+                // Add message with typing effect
+                addMessage('assistant', botText, true);
                 messages.push({ role: 'assistant', content: botText });
 
                 console.log('✅ Response received:', {
@@ -273,7 +336,7 @@
             } catch (error) {
                 hideLoading();
                 console.error('❌ Error:', error);
-                addMessage('assistant', '❌ Lỗi: ' + error.message);
+                addMessage('assistant', '❌ Lỗi: ' + error.message, false);
             } finally {
                 isLoading = false;
                 messageInput.disabled = false;
