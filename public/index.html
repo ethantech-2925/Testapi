@@ -152,25 +152,41 @@
     </div>
 
     <script>
-        const messagesDiv = document.getElementById('messages');
-        const messagesContainer = document.getElementById('messages-container');
-        const emptyState = document.getElementById('empty-state');
-        const chatForm = document.getElementById('chat-form');
-        const messageInput = document.getElementById('message-input');
-        const sendButton = document.getElementById('send-button');
-        const modelSelect = document.getElementById('model-select');
-        const chatHistory = document.getElementById('chat-history');
-        const chatCount = document.getElementById('chat-count');
-        const currentChatTitle = document.getElementById('current-chat-title');
-        const viewModeNotice = document.getElementById('view-mode-notice');
+        // Global variables
+        let messagesDiv;
+        let messagesContainer;
+        let emptyState;
+        let chatForm;
+        let messageInput;
+        let sendButton;
+        let modelSelect;
+        let chatHistory;
+        let chatCount;
+        let currentChatTitle;
+        let viewModeNotice;
         
         let messages = [];
         let isLoading = false;
         let availableModels = [];
         let currentChatId = null;
-        let isViewMode = false; // Chế độ xem lịch sử
+        let isViewMode = false;
         const MAX_CHATS = 300;
         const STORAGE_KEY = 'ai_chat_history';
+
+        // Initialize DOM elements
+        function initElements() {
+            messagesDiv = document.getElementById('messages');
+            messagesContainer = document.getElementById('messages-container');
+            emptyState = document.getElementById('empty-state');
+            chatForm = document.getElementById('chat-form');
+            messageInput = document.getElementById('message-input');
+            sendButton = document.getElementById('send-button');
+            modelSelect = document.getElementById('model-select');
+            chatHistory = document.getElementById('chat-history');
+            chatCount = document.getElementById('chat-count');
+            currentChatTitle = document.getElementById('current-chat-title');
+            viewModeNotice = document.getElementById('view-mode-notice');
+        }
 
         // Chat storage structure
         class ChatStorage {
@@ -552,6 +568,7 @@
 
         // Initialize
         window.addEventListener('DOMContentLoaded', () => {
+            initElements();
             loadModels();
             createNewChat();
             renderChatHistory();
