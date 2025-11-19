@@ -14,9 +14,7 @@ if (!process.env.OPENROUTER_API_KEY) {
   process.exit(1);
 }
 
-app.use(helmet({
-  contentSecurityPolicy: false,
-}));
+app.use(helmet());
 
 const allowedOrigins = (process.env.ALLOWED_ORIGINS || '').split(',').filter(Boolean);
 if (allowedOrigins.length > 0) {

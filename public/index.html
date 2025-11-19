@@ -5,22 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AI Chat Assistant</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <style>
-        @keyframes bounce {
-            0%, 100% { transform: translateY(0); }
-            50% { transform: translateY(-5px); }
-        }
-        .animate-bounce {
-            animation: bounce 1s infinite;
-        }
-        .animate-spin {
-            animation: spin 1s linear infinite;
-        }
-        @keyframes spin {
-            from { transform: rotate(0deg); }
-            to { transform: rotate(360deg); }
-        }
-    </style>
+    <link rel="stylesheet" href="/styles.css">
 </head>
 <body class="bg-gradient-to-br from-slate-50 to-slate-100 min-h-screen">
     <div id="app" class="container mx-auto px-4 py-8 max-w-4xl">
@@ -66,117 +51,6 @@
         </div>
     </div>
 
-    <script>
-        const messagesDiv = document.getElementById('messages');
-        const emptyState = document.getElementById('empty-state');
-        const chatForm = document.getElementById('chat-form');
-        const messageInput = document.getElementById('message-input');
-        const sendButton = document.getElementById('send-button');
-        let messages = [];
-        let isLoading = false;
-
-        function addMessage(role, content) {
-            const time = new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
-            const messageDiv = document.createElement('div');
-            messageDiv.className = `flex ${role === 'user' ? 'justify-end' : 'justify-start'}`;
-
-            const isUser = role === 'user';
-            const bgColor = isUser ? 'bg-blue-600 text-white rounded-br-none' : 'bg-white text-slate-800 border border-slate-200 rounded-bl-none';
-            const timeColor = isUser ? 'text-blue-100' : 'text-slate-400';
-
-            messageDiv.innerHTML = `
-                <div class="max-w-xs lg:max-w-md xl:max-w-lg px-4 py-3 rounded-2xl shadow-sm ${bgColor}">
-                    <p class="whitespace-pre-wrap break-words">${content}</p>
-                    <span class="text-xs mt-1 block ${timeColor}">${time}</span>
-                </div>
-            `;
-
-            if (emptyState) {
-                emptyState.remove();
-            }
-
-            messagesDiv.appendChild(messageDiv);
-            messagesDiv.scrollTop = messagesDiv.scrollHeight;
-        }
-
-        function showLoading() {
-            const loadingDiv = document.createElement('div');
-            loadingDiv.id = 'loading';
-            loadingDiv.className = 'flex justify-start';
-            loadingDiv.innerHTML = `
-                <div class="bg-white text-slate-800 px-4 py-3 rounded-2xl rounded-bl-none shadow-sm border border-slate-200">
-                    <div class="flex space-x-2">
-                        <div class="w-2 h-2 bg-slate-400 rounded-full animate-bounce"></div>
-                        <div class="w-2 h-2 bg-slate-400 rounded-full animate-bounce" style="animation-delay: 0.2s"></div>
-                        <div class="w-2 h-2 bg-slate-400 rounded-full animate-bounce" style="animation-delay: 0.4s"></div>
-                    </div>
-                </div>
-            `;
-            messagesDiv.appendChild(loadingDiv);
-            messagesDiv.scrollTop = messagesDiv.scrollHeight;
-        }
-
-        function hideLoading() {
-            const loadingDiv = document.getElementById('loading');
-            if (loadingDiv) {
-                loadingDiv.remove();
-            }
-        }
-
-        async function sendMessage(content) {
-            if (!content.trim() || isLoading) return;
-
-            isLoading = true;
-            messageInput.disabled = true;
-            sendButton.disabled = true;
-
-            addMessage('user', content);
-            messages.push({ role: 'user', content });
-
-            showLoading();
-
-            try {
-                const response = await fetch('/api/chat', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        model: 'z-ai/glm-4.5-air:free',
-                        messages: messages
-                    })
-                });
-
-                hideLoading();
-
-                if (!response.ok) {
-                    throw new Error(`HTTP error: ${response.status}`);
-                }
-
-                const data = await response.json();
-                const botText = data?.choices?.[0]?.message?.content || 'Không có phản hồi';
-
-                addMessage('assistant', botText);
-                messages.push({ role: 'assistant', content: botText });
-            } catch (error) {
-                hideLoading();
-                addMessage('assistant', 'Lỗi: ' + error.message);
-            } finally {
-                isLoading = false;
-                messageInput.disabled = false;
-                sendButton.disabled = false;
-                messageInput.value = '';
-                messageInput.focus();
-            }
-        }
-
-        chatForm.addEventListener('submit', (e) => {
-            e.preventDefault();
-            const content = messageInput.value.trim();
-            if (content) {
-                sendMessage(content);
-            }
-        });
-
-        messageInput.focus();
-    </script>
+    <script src="/app.js"></script>
 </body>
 </html>
