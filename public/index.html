@@ -63,7 +63,7 @@
             <!-- Sidebar Header -->
             <div class="p-4 border-b border-slate-200">
                 <button 
-                    onclick="createNewChat()"
+                    id="new-chat-btn"
                     class="w-full bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-all flex items-center justify-center gap-2"
                 >
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -91,7 +91,6 @@
             <!-- Mobile Menu Button -->
             <button 
                 id="mobile-menu-btn"
-                onclick="toggleSidebar()"
                 class="md:hidden fixed top-4 left-4 z-40 bg-white p-2 rounded-lg shadow-lg"
             >
                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -311,8 +310,8 @@
                 return `
                     <div class="group relative mb-1 ${isActive ? 'bg-blue-50' : 'hover:bg-slate-50'} rounded-lg transition-colors">
                         <button 
-                            onclick="loadChat('${chat.id}')"
-                            class="w-full text-left p-3 rounded-lg ${isActive ? 'text-blue-600' : 'text-slate-700'}"
+                            class="chat-item-btn w-full text-left p-3 rounded-lg ${isActive ? 'text-blue-600' : 'text-slate-700'}"
+                            data-chat-id="${chat.id}"
                         >
                             <div class="flex items-start justify-between gap-2">
                                 <div class="flex-1 min-w-0">
@@ -320,8 +319,8 @@
                                     <p class="text-xs text-slate-500 mt-1">${date} • ${chat.messages.length} tin</p>
                                 </div>
                                 <button 
-                                    onclick="event.stopPropagation(); deleteChatWithConfirm('${chat.id}')"
-                                    class="opacity-0 group-hover:opacity-100 text-red-500 hover:text-red-700 transition-opacity p-1"
+                                    class="delete-chat-btn opacity-0 group-hover:opacity-100 text-red-500 hover:text-red-700 transition-opacity p-1"
+                                    data-chat-id="${chat.id}"
                                     title="Xóa chat"
                                 >
                                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -333,6 +332,22 @@
                     </div>
                 `;
             }).join('');
+
+            // Attach event listeners to dynamically created elements
+            document.querySelectorAll('.chat-item-btn').forEach(btn => {
+                btn.addEventListener('click', function(e) {
+                    const chatId = this.getAttribute('data-chat-id');
+                    loadChat(chatId);
+                });
+            });
+
+            document.querySelectorAll('.delete-chat-btn').forEach(btn => {
+                btn.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    const chatId = this.getAttribute('data-chat-id');
+                    deleteChatWithConfirm(chatId);
+                });
+            });
         }
 
         // Delete chat with confirmation
@@ -470,12 +485,14 @@
                 const copyBtn = document.createElement('button');
                 copyBtn.innerHTML = '📋';
                 copyBtn.className = 'absolute top-2 right-2 text-xs opacity-0 group-hover:opacity-100 transition-opacity bg-white px-2 py-1 rounded shadow hover:bg-slate-100';
-                copyBtn.onclick = (e) => {
+                copyBtn.addEventListener('click', function(e) {
                     e.stopPropagation();
                     navigator.clipboard.writeText(content);
                     copyBtn.innerHTML = '✅';
-                    setTimeout(() => copyBtn.innerHTML = '📋', 2000);
-                };
+                    setTimeout(function() { 
+                        copyBtn.innerHTML = '📋'; 
+                    }, 2000);
+                });
                 
                 wrapper.appendChild(contentDiv);
                 wrapper.appendChild(copyBtn);
@@ -517,7 +534,9 @@
                 element.textContent = currentText;
                 element.appendChild(cursor);
                 messagesContainer.scrollTop = messagesContainer.scrollHeight;
-                await new Promise(resolve => setTimeout(resolve, typingSpeed));
+                await new Promise(function(resolve) { 
+                    setTimeout(resolve, typingSpeed); 
+                });
             }
 
             cursor.remove();
@@ -569,7 +588,7 @@
             modelSelect.disabled = true;
 
             addMessage('user', content, false);
-            messages.push({ role: 'user', content });
+            messages.push({ role: 'user', content: content });
             saveCurrentChat();
 
             showLoading();
@@ -616,13 +635,17 @@
         }
 
         // Initialize
-        window.addEventListener('DOMContentLoaded', () => {
+        window.addEventListener('DOMContentLoaded', function() {
             initElements();
             loadModels();
             renderChatHistory();
             createNewChat();
 
-            chatForm.addEventListener('submit', (e) => {
+            // Event listeners for buttons
+            document.getElementById('new-chat-btn').addEventListener('click', createNewChat);
+            document.getElementById('mobile-menu-btn').addEventListener('click', toggleSidebar);
+
+            chatForm.addEventListener('submit', function(e) {
                 e.preventDefault();
                 if (!isViewMode) {
                     const content = messageInput.value.trim();
@@ -630,7 +653,7 @@
                 }
             });
 
-            messageInput.addEventListener('keydown', (e) => {
+            messageInput.addEventListener('keydown', function(e) {
                 if (e.key === 'Enter' && !e.shiftKey) {
                     e.preventDefault();
                     if (!isViewMode) {
