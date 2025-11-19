@@ -3,18 +3,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    
-    <!-- Dòng này chỉ có 1 dấu < thôi nhé, quan trọng vl -->
     <meta http-equiv="Content-Security-Policy" content="
-    default-src 'self';
-    script-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com;
-    script-src-attr 'unsafe-inline';
-    style-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com;
-    img-src 'self' data: https:;
-    connect-src 'self' https://api.x.ai https://api.groq.com wss:;
-    font-src 'self' data:;
-    object-src 'none';
-">    
+        default-src 'self';
+        script-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com;
+        script-src-attr 'unsafe-inline';
+        style-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com;
+        img-src 'self' data: https:;
+        connect-src 'self';
+        font-src 'self' data:;
+        object-src 'none';
+    ">    
     <title>AI Chat Assistant</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
@@ -54,6 +52,7 @@
             .sidebar {
                 position: fixed;
                 z-index: 50;
+                height: 100vh;
             }
         }
     </style>
@@ -110,7 +109,7 @@
                             <p class="text-sm text-slate-600" id="current-chat-title">Chat mới</p>
                         </div>
                         <div class="flex items-center gap-2">
-                            <span class="text-white text-sm font-medium hidden md:block">Model:</span>
+                            <span class="text-slate-600 text-sm font-medium hidden md:block">Model:</span>
                             <select 
                                 id="model-select" 
                                 class="bg-blue-600 text-white px-3 py-2 rounded-lg text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-300 cursor-pointer"
@@ -156,7 +155,7 @@
                     </form>
                     <!-- View Mode Notice -->
                     <div id="view-mode-notice" class="hidden mt-2 text-sm text-amber-600 bg-amber-50 px-4 py-2 rounded-lg">
-                        📖 Đang xem lịch sử - Không thể chat trong chế độ này
+                        📖 Đang xem lịch sử - Không thể chat trong chế độ này. Nhấn "Chat mới" để tiếp tục.
                     </div>
                 </div>
             </div>
@@ -203,27 +202,36 @@
         // Chat storage structure
         class ChatStorage {
             static getAllChats() {
-                const data = localStorage.getItem(STORAGE_KEY);
-                return data ? JSON.parse(data) : [];
+                try {
+                    const data = localStorage.getItem(STORAGE_KEY);
+                    return data ? JSON.parse(data) : [];
+                } catch (e) {
+                    console.error('Error reading chat history:', e);
+                    return [];
+                }
             }
 
             static saveChat(chat) {
-                let chats = this.getAllChats();
-                
-                // Limit to MAX_CHATS
-                if (chats.length >= MAX_CHATS) {
-                    chats = chats.slice(-MAX_CHATS + 1);
+                try {
+                    let chats = this.getAllChats();
+                    
+                    if (chats.length >= MAX_CHATS) {
+                        chats = chats.slice(-MAX_CHATS + 1);
+                    }
+                    
+                    const existingIndex = chats.findIndex(c => c.id === chat.id);
+                    if (existingIndex >= 0) {
+                        chats[existingIndex] = chat;
+                    } else {
+                        chats.push(chat);
+                    }
+                    
+                    localStorage.setItem(STORAGE_KEY, JSON.stringify(chats));
+                    return chat;
+                } catch (e) {
+                    console.error('Error saving chat:', e);
+                    return null;
                 }
-                
-                const existingIndex = chats.findIndex(c => c.id === chat.id);
-                if (existingIndex >= 0) {
-                    chats[existingIndex] = chat;
-                } else {
-                    chats.push(chat);
-                }
-                
-                localStorage.setItem(STORAGE_KEY, JSON.stringify(chats));
-                return chat;
             }
 
             static getChat(id) {
@@ -232,9 +240,15 @@
             }
 
             static deleteChat(id) {
-                let chats = this.getAllChats();
-                chats = chats.filter(c => c.id !== id);
-                localStorage.setItem(STORAGE_KEY, JSON.stringify(chats));
+                try {
+                    let chats = this.getAllChats();
+                    chats = chats.filter(c => c.id !== id);
+                    localStorage.setItem(STORAGE_KEY, JSON.stringify(chats));
+                    return true;
+                } catch (e) {
+                    console.error('Error deleting chat:', e);
+                    return false;
+                }
             }
 
             static getChatTitle(messages) {
@@ -284,7 +298,6 @@
                 return;
             }
 
-            // Sort by timestamp, newest first
             chats.sort((a, b) => b.timestamp - a.timestamp);
 
             chatHistory.innerHTML = chats.map(chat => {
@@ -308,7 +321,7 @@
                                     <p class="text-xs text-slate-500 mt-1">${date} • ${chat.messages.length} tin</p>
                                 </div>
                                 <button 
-                                    onclick="event.stopPropagation(); if(confirm('Xóa chat này thật hả bro?')) deleteChat('${chat.id}') "
+                                    onclick="event.stopPropagation(); deleteChatWithConfirm('${chat.id}')"
                                     class="opacity-0 group-hover:opacity-100 text-red-500 hover:text-red-700 transition-opacity p-1"
                                     title="Xóa chat"
                                 >
@@ -323,7 +336,14 @@
             }).join('');
         }
 
-        // Create new chat - FIX BUG VIEW MODE
+        // Delete chat with confirmation
+        function deleteChatWithConfirm(chatId) {
+            if (confirm('Xóa chat này?')) {
+                deleteChat(chatId);
+            }
+        }
+
+        // Create new chat
         function createNewChat() {
             if (isViewMode && messages.length > 0) {
                 if (!confirm('Bạn đang xem lịch sử. Tạo chat mới sẽ thoát chế độ xem, tiếp tục?')) {
@@ -333,10 +353,9 @@
 
             currentChatId = 'chat_' + Date.now();
             messages = [];
-            isViewMode = false;  // ĐẢM BẢO set false
+            isViewMode = false;
     
-            // Reset hoàn toàn UI
-            messagesDiv.innerHTML = `
+            const emptyStateHtml = `
                 <div class="text-center text-slate-400 mt-20" id="empty-state">
                     <svg class="w-16 h-16 mx-auto mb-4 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
@@ -344,38 +363,40 @@
                     <p>Bắt đầu cuộc trò chuyện</p>
                 </div>
             `;
+            
+            messagesDiv.innerHTML = emptyStateHtml;
+            emptyState = document.getElementById('empty-state');
     
             currentChatTitle.textContent = 'Chat mới';
             messageInput.disabled = false;
             sendButton.disabled = false;
             modelSelect.disabled = false;
-            viewModeNotice.classList.add('hidden');  // Ẩn cái thông báo vàng
-            messageInput.value = '';                 // Xóa input nếu có rác
+            viewModeNotice.classList.add('hidden');
+            messageInput.value = '';
             messageInput.focus();
             renderChatHistory();
 
-            // Đóng sidebar trên mobile
             if (window.innerWidth < 768) {
                 document.getElementById('sidebar').classList.add('sidebar-hidden');
             }
         }
 
-        // Load existing chat (VIEW MODE)
+        // Load existing chat
         function loadChat(chatId) {
             const chat = ChatStorage.getChat(chatId);
             if (!chat) return;
 
             currentChatId = chatId;
-            messages = [...chat.messages]; // Copy messages
-            isViewMode = true; // Enable view mode
+            messages = [...chat.messages];
+            isViewMode = true;
 
-            // Render messages
             messagesDiv.innerHTML = '';
+            emptyState = null;
+            
             messages.forEach(msg => {
                 addMessage(msg.role, msg.content, false);
             });
 
-            // Update UI for view mode
             currentChatTitle.textContent = '📖 ' + ChatStorage.getChatTitle(chat.messages);
             messageInput.disabled = true;
             sendButton.disabled = true;
@@ -384,7 +405,6 @@
             
             renderChatHistory();
 
-            // Close sidebar on mobile
             if (window.innerWidth < 768) {
                 document.getElementById('sidebar').classList.add('sidebar-hidden');
             }
@@ -416,7 +436,7 @@
             renderChatHistory();
         }
 
-        // Toggle sidebar (mobile)
+        // Toggle sidebar
         function toggleSidebar() {
             document.getElementById('sidebar').classList.toggle('sidebar-hidden');
         }
@@ -445,6 +465,9 @@
             contentDiv.appendChild(timeSpan);
 
             if (!isUser) {
+                const wrapper = document.createElement('div');
+                wrapper.className = 'relative group';
+                
                 const copyBtn = document.createElement('button');
                 copyBtn.innerHTML = '📋';
                 copyBtn.className = 'absolute top-2 right-2 text-xs opacity-0 group-hover:opacity-100 transition-opacity bg-white px-2 py-1 rounded shadow hover:bg-slate-100';
@@ -454,8 +477,7 @@
                     copyBtn.innerHTML = '✅';
                     setTimeout(() => copyBtn.innerHTML = '📋', 2000);
                 };
-                const wrapper = document.createElement('div');
-                wrapper.className = 'relative group';
+                
                 wrapper.appendChild(contentDiv);
                 wrapper.appendChild(copyBtn);
                 messageDiv.appendChild(wrapper);
@@ -463,8 +485,9 @@
                 messageDiv.appendChild(contentDiv);
             }
 
-            if (emptyState) {
+            if (emptyState && emptyState.parentNode) {
                 emptyState.remove();
+                emptyState = null;
             }
 
             messagesDiv.appendChild(messageDiv);
@@ -593,34 +616,30 @@
             }
         }
 
-       
-
         // Initialize
-      window.addEventListener('DOMContentLoaded', () => {
-    initElements();
-    loadModels();
-    renderChatHistory();
+        window.addEventListener('DOMContentLoaded', () => {
+            initElements();
+            loadModels();
+            renderChatHistory();
+            createNewChat();
 
-    // Luôn bắt đầu bằng chat mới khi reload trang (tránh bug view mode)
-    createNewChat();
+            chatForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                if (!isViewMode) {
+                    const content = messageInput.value.trim();
+                    if (content) sendMessage(content);
+                }
+            });
 
-    // Thêm đoạn này
-    chatForm.addEventListener('submit', (e) => {
-        e.preventDefault();
-        if (!isViewMode) {
-            const content = messageInput.value.trim();
-            if (content) sendMessage(content);
-        }
-    });
-
-    messageInput.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter' && !e.shiftKey) {
-            e.preventDefault();
-            chatForm.dispatchEvent(new Event('submit'));
-        }
-    });
-});
-
+            messageInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    if (!isViewMode) {
+                        chatForm.dispatchEvent(new Event('submit'));
+                    }
+                }
+            });
+        });
     </script>
 </body>
 </html>
