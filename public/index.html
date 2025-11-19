@@ -5,8 +5,16 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     
     <!-- Dòng này chỉ có 1 dấu < thôi nhé, quan trọng vl -->
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com; script-src-attr 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com; img-src 'self' data: https:; connect-src 'self' https://api.x.ai https://api.groq.com wss:; font-src 'self' data:; object-src 'none';">
-
+    <meta http-equiv="Content-Security-Policy" content="
+    default-src 'self';
+    script-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com;
+    script-src-attr 'unsafe-inline';
+    style-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com;
+    img-src 'self' data: https:;
+    connect-src 'self' https://api.x.ai https://api.groq.com wss:;
+    font-src 'self' data:;
+    object-src 'none';
+">    
     <title>AI Chat Assistant</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
