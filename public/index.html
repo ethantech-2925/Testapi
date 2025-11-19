@@ -320,12 +320,19 @@
             }).join('');
         }
 
-        // Create new chat
+        // Create new chat - FIX BUG VIEW MODE
         function createNewChat() {
+            if (isViewMode && messages.length > 0) {
+                if (!confirm('Bạn đang xem lịch sử. Tạo chat mới sẽ thoát chế độ xem, tiếp tục?')) {
+                    return;
+                }
+            }
+
             currentChatId = 'chat_' + Date.now();
             messages = [];
-            isViewMode = false;
-            
+            isViewMode = false;  // ĐẢM BẢO set false
+    
+            // Reset hoàn toàn UI
             messagesDiv.innerHTML = `
                 <div class="text-center text-slate-400 mt-20" id="empty-state">
                     <svg class="w-16 h-16 mx-auto mb-4 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -334,16 +341,17 @@
                     <p>Bắt đầu cuộc trò chuyện</p>
                 </div>
             `;
-            
+    
             currentChatTitle.textContent = 'Chat mới';
             messageInput.disabled = false;
             sendButton.disabled = false;
             modelSelect.disabled = false;
-            viewModeNotice.classList.add('hidden');
+            viewModeNotice.classList.add('hidden');  // Ẩn cái thông báo vàng
+            messageInput.value = '';                 // Xóa input nếu có rác
             messageInput.focus();
             renderChatHistory();
 
-            // Close sidebar on mobile
+            // Đóng sidebar trên mobile
             if (window.innerWidth < 768) {
                 document.getElementById('sidebar').classList.add('sidebar-hidden');
             }
@@ -588,8 +596,10 @@
       window.addEventListener('DOMContentLoaded', () => {
     initElements();
     loadModels();
-    createNewChat();
     renderChatHistory();
+
+    // Luôn bắt đầu bằng chat mới khi reload trang (tránh bug view mode)
+    createNewChat();
 
     // Thêm đoạn này
     chatForm.addEventListener('submit', (e) => {
