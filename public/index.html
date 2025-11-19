@@ -3,6 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Security-Policy" content="
+        default-src 'self';
+        script-src 'self' 'unsafe-inline';
+        style-src 'self' 'unsafe-inline';
+        img-src 'self' data: https:;
+        connect-src 'self' https://api.x.ai https://api.groq.com wss:;
+        font-src 'self' data:;
+        object-src 'none';
+    ">
     <title>AI Chat Assistant</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
@@ -296,7 +305,7 @@
                                     <p class="text-xs text-slate-500 mt-1">${date} • ${chat.messages.length} tin</p>
                                 </div>
                                 <button 
-                                    onclick="event.stopPropagation(); deleteChat('${chat.id}')"
+                                    onclick="event.stopPropagation(); if(confirm('Xóa chat này thật hả bro?')) deleteChat('${chat.id}') "
                                     class="opacity-0 group-hover:opacity-100 text-red-500 hover:text-red-700 transition-opacity p-1"
                                     title="Xóa chat"
                                 >
@@ -372,8 +381,6 @@
 
         // Delete chat
         function deleteChat(chatId) {
-            if (!confirm('Bạn có chắc muốn xóa đoạn chat này?')) return;
-            
             ChatStorage.deleteChat(chatId);
             
             if (currentChatId === chatId) {
@@ -425,7 +432,25 @@
 
             contentDiv.appendChild(textP);
             contentDiv.appendChild(timeSpan);
-            messageDiv.appendChild(contentDiv);
+
+            if (!isUser) {
+                const copyBtn = document.createElement('button');
+                copyBtn.innerHTML = '📋';
+                copyBtn.className = 'absolute top-2 right-2 text-xs opacity-0 group-hover:opacity-100 transition-opacity bg-white px-2 py-1 rounded shadow hover:bg-slate-100';
+                copyBtn.onclick = (e) => {
+                    e.stopPropagation();
+                    navigator.clipboard.writeText(content);
+                    copyBtn.innerHTML = '✅';
+                    setTimeout(() => copyBtn.innerHTML = '📋', 2000);
+                };
+                const wrapper = document.createElement('div');
+                wrapper.className = 'relative group';
+                wrapper.appendChild(contentDiv);
+                wrapper.appendChild(copyBtn);
+                messageDiv.appendChild(wrapper);
+            } else {
+                messageDiv.appendChild(contentDiv);
+            }
 
             if (emptyState) {
                 emptyState.remove();
@@ -572,6 +597,13 @@
         if (!isViewMode) {
             const content = messageInput.value.trim();
             if (content) sendMessage(content);
+        }
+    });
+
+    messageInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            chatForm.dispatchEvent(new Event('submit'));
         }
     });
 });
