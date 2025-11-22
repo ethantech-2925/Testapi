@@ -1,12 +1,15 @@
-/** @type {import('tailwindcss').Config} */
-export default {
-  content: [
-    "./index.html",  // Scan HTML
-    "./src/**/*.{js,jsx,html}",  // Scan JS/HTML trong src
-    "./**/*.html"  // Toàn bộ HTML
-  ],
-  theme: {
-    extend: {},
+/import { defineConfig } from 'vite';
+
+export default defineConfig({
+  css: {
+    postcss: {
+      plugins: [
+        require('tailwindcss'),
+        require('autoprefixer'),
+      ],
+    },
   },
-  plugins: [],
-}
+  build: {
+    outDir: 'dist',
+  },
+});
