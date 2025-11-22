@@ -1,3 +1,6 @@
+import './index.css';  // Đầu file
+// Phần code còn lại...
+
 // ============================================
 // ✅ CRITICAL FIX: Enhanced Security
 // ============================================
