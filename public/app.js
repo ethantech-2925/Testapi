@@ -94,7 +94,8 @@ async function sendMessage(content) {
         hideLoading();
 
         if (!response.ok) {
-            throw new Error(`HTTP error: ${response.status}`);
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(errorData.error || `HTTP error: ${response.status}`);
         }
 
         const data = await response.json();
@@ -104,7 +105,7 @@ async function sendMessage(content) {
         messages.push({ role: 'assistant', content: botText });
     } catch (error) {
         hideLoading();
-        addMessage('assistant', 'Lỗi: ' + error.message);
+        addMessage('assistant', 'Lỗi: ' + (error?.message || 'Không thể kết nối'));
     } finally {
         isLoading = false;
         messageInput.disabled = false;

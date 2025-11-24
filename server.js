@@ -17,11 +17,11 @@ if (!process.env.OPENROUTER_API_KEY) {
 app.use(helmet());
 
 const allowedOrigins = (process.env.ALLOWED_ORIGINS || '').split(',').filter(Boolean);
-if (allowedOrigins.length > 0) {
-  app.use(cors({ origin: allowedOrigins }));
-} else {
-  app.use(cors());
-}
+const corsOptions = {
+  origin: allowedOrigins.length > 0 ? allowedOrigins : '*',
+  credentials: true
+};
+app.use(cors(corsOptions));
 
 app.use(rateLimit({ windowMs: 60000, max: 30 }));
 app.use(express.json({ limit: '100kb' }));
@@ -38,7 +38,9 @@ app.post('/api/chat', async (req, res) => {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY}`
+        'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY}`,
+        'HTTP-Referer': process.env.HTTP_REFERER || 'https://openrouter.local',
+        'X-Title': 'AI Chat Assistant'
       },
       body: JSON.stringify({ model: model || 'z-ai/glm-4.5-air:free', messages })
     });
@@ -53,6 +55,10 @@ app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
 
-
-app.listen(PORT, () => console.log(`Server running on http://localhost:${PORT}`));
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`Server running on port ${PORT}`);
+});
