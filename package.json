@@ -1,9 +1,14 @@
 {
   "name": "openrouter-proxy",
   "version": "1.0.0",
+  "description": "AI Chat Assistant powered by OpenRouter",
+  "engines": {
+    "node": "18.x"
+  },
   "scripts": {
     "start": "node server.js",
-    "build": "echo 'Build completed'"
+    "build": "echo 'Build completed'",
+    "dev": "node server.js"
   },
   "dependencies": {
     "cors": "^2.8.5",

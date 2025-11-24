@@ -47,11 +47,11 @@ app.use(helmet({
   contentSecurityPolicy: {
     directives: {
       defaultSrc: ["'self'"],
-      scriptSrc: ["'self'", "'unsafe-inline'", "https://cdn.tailwindcss.com"],
-      styleSrc: ["'self'", "'unsafe-inline'"],
-      imgSrc: ["'self'", "data:", "https:"],
-      connectSrc: ["'self'"],
-      fontSrc: ["'self'"],
+      scriptSrc: ["'self'", "https://cdn.tailwindcss.com"],
+      styleSrc: ["'self'", "'unsafe-inline'", "https://cdn.tailwindcss.com"],
+      imgSrc: ["'self'", "data:", "https:", "blob:"],
+      connectSrc: ["'self'", "https://openrouter.ai"],
+      fontSrc: ["'self'", "data:"],
       objectSrc: ["'none'"],
       mediaSrc: ["'self'"],
       frameSrc: ["'none'"]
@@ -68,20 +68,36 @@ app.use(helmet({
 // CORS Configuration
 const allowedOrigins = (process.env.ALLOWED_ORIGINS || '').split(',').filter(Boolean);
 
+// Production: must have ALLOWED_ORIGINS, or allow all for Render
+const corsOptions = {
+  origin: function (origin, callback) {
+    // Render: cho phép requests từ cùng origin (không có origin header)
+    if (!origin || allowedOrigins.length === 0) {
+      return callback(null, true);
+    }
+
+    if (allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else if (process.env.NODE_ENV !== 'production') {
+      // Development: cho phép tất cả
+      callback(null, true);
+    } else {
+      callback(new Error('CORS not allowed'));
+    }
+  },
+  methods: ['GET', 'POST'],
+  allowedHeaders: ['Content-Type'],
+  credentials: true
+};
+
+app.use(cors(corsOptions));
+
 if (allowedOrigins.length > 0) {
   console.log('✅ CORS enabled for:', allowedOrigins);
-  app.use(cors({ 
-    origin: allowedOrigins,
-    methods: ['GET', 'POST'],
-    allowedHeaders: ['Content-Type']
-  }));
+} else if (process.env.NODE_ENV === 'production') {
+  console.warn('⚠️  CORS: Allowing same-origin requests (Render deployment)');
 } else {
-  console.warn('⚠️  CORS: Allowing all origins (insecure for production!)');
-  if (process.env.NODE_ENV === 'production') {
-    console.error('❌ ALLOWED_ORIGINS must be set in production');
-    process.exit(1);
-  }
-  app.use(cors());
+  console.log('ℹ️  CORS: Allowing all origins (development mode)');
 }
 
 // Rate limiting với improved configuration
@@ -286,14 +302,13 @@ app.post('/api/chat', async (req, res) => {
         'HTTP-Referer': process.env.APP_URL || 'http://localhost:3001',
         'X-Title': 'AI Chat Assistant'
       },
-      body: JSON.stringify({ 
-        model: selectedModel, 
+      body: JSON.stringify({
+        model: selectedModel,
         messages,
         // Thêm các params để kiểm soát chi phí
         max_tokens: 1000,  // Giới hạn output
         temperature: 0.7
-      }),
-      timeout: 30000 // 30s timeout
+      })
     });
 
     const data = await response.json();
@@ -398,11 +413,12 @@ app.use((err, req, res, next) => {
 // 6. START SERVER
 // ============================================
 
-app.listen(PORT, () => {
+app.listen(PORT, '0.0.0.0', () => {
   console.log('===========================================');
   console.log('🚀 Server started successfully');
   console.log('===========================================');
-  console.log(`📍 URL: http://localhost:${PORT}`);
+  console.log(`📍 Port: ${PORT}`);
+  console.log(`🌐 Listening on 0.0.0.0:${PORT} (all interfaces)`);
   console.log(`🔒 Environment: ${process.env.NODE_ENV || 'development'}`);
   console.log(`⚡ Rate limit: ${CONFIG.RATE_LIMIT_MAX} requests/${CONFIG.RATE_LIMIT_WINDOW/1000}s`);
   console.log(`🤖 Default model: ${CONFIG.ALLOWED_MODELS[0]}`);
