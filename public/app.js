@@ -157,8 +157,11 @@ function initElements() {
 
 class ChatStorage {
     /**
-     * ✅ IMPROVED: Validate data before parsing
-     */
+   // ============================================
+// ✅ COPY TOÀN BỘ CLASS NÀY - Thay thế ChatStorage cũ
+// ============================================
+
+class ChatStorage {
     static getAllChats() {
         try {
             const data = localStorage.getItem(STORAGE_KEY);
@@ -166,31 +169,64 @@ class ChatStorage {
             
             const parsed = JSON.parse(data);
             
-            // Validate structure
             if (!Array.isArray(parsed)) {
                 console.error('Invalid chat history format');
                 return [];
             }
             
-            return parsed;
+            const validChats = parsed.filter(chat => this.validateChatStructure(chat));
+            return validChats;
         } catch (e) {
             console.error('Error reading chat history:', e);
             return [];
         }
     }
 
-    /**
-     * ✅ IMPROVED: Validate chat object before saving
-     */
+    static validateChatStructure(chat) {
+        if (!chat || typeof chat !== 'object') return false;
+        
+        if (!chat.id || typeof chat.id !== 'string') return false;
+        if (!Array.isArray(chat.messages)) return false;
+        if (typeof chat.timestamp !== 'number') return false;
+        
+        if (!/^[a-zA-Z0-9_-]{1,100}$/.test(chat.id)) return false;
+        if (chat.timestamp <= 0 || chat.timestamp > Date.now()) return false;
+        if (chat.messages.length > 50) return false;
+        
+        for (const msg of chat.messages) {
+            if (!this.validateMessage(msg)) return false;
+        }
+        
+        return true;
+    }
+
+    static validateMessage(msg) {
+        if (!msg || typeof msg !== 'object') return false;
+        
+        const validRoles = ['user', 'assistant', 'system'];
+        if (!validRoles.includes(msg.role)) return false;
+        
+        if (typeof msg.content !== 'string') return false;
+        if (msg.content.length > 5000) return false;
+        
+        return true;
+    }
+
     static saveChat(chat) {
         try {
-            // Validate chat structure
             if (!chat || typeof chat !== 'object') {
                 console.error('Invalid chat object');
                 return null;
             }
             
-            if (!chat.id || !Array.isArray(chat.messages)) {
+            const sanitizedChat = this.sanitizeChat(chat);
+            
+            if (!sanitizedChat) {
+                console.error('Chat failed sanitization');
+                return null;
+            }
+            
+            if (!this.validateChatStructure(sanitizedChat)) {
                 console.error('Invalid chat structure');
                 return null;
             }
@@ -201,30 +237,101 @@ class ChatStorage {
                 chats = chats.slice(-MAX_CHATS + 1);
             }
             
-            const existingIndex = chats.findIndex(c => c.id === chat.id);
+            const existingIndex = chats.findIndex(c => c.id === sanitizedChat.id);
             if (existingIndex >= 0) {
-                chats[existingIndex] = chat;
+                chats[existingIndex] = sanitizedChat;
             } else {
-                chats.push(chat);
+                chats.push(sanitizedChat);
             }
             
             localStorage.setItem(STORAGE_KEY, JSON.stringify(chats));
-            return chat;
+            return sanitizedChat;
         } catch (e) {
             console.error('Error saving chat:', e);
             return null;
         }
     }
 
+    static sanitizeChat(chat) {
+        const sanitized = Object.create(null);
+        
+        if (typeof chat.id === 'string') {
+            sanitized.id = chat.id.replace(/[^a-zA-Z0-9_-]/g, '').substring(0, 100);
+        } else {
+            return null;
+        }
+        
+        if (typeof chat.timestamp === 'number') {
+            sanitized.timestamp = Math.max(0, Math.min(chat.timestamp, Date.now()));
+        } else {
+            sanitized.timestamp = Date.now();
+        }
+        
+        if (typeof chat.model === 'string') {
+            sanitized.model = chat.model.substring(0, 200);
+        } else {
+            sanitized.model = 'unknown';
+        }
+        
+        if (Array.isArray(chat.messages)) {
+            sanitized.messages = chat.messages
+                .slice(0, 50)
+                .map(msg => this.sanitizeMessage(msg))
+                .filter(msg => msg !== null);
+        } else {
+            return null;
+        }
+        
+        return sanitized;
+    }
+
+    static sanitizeMessage(msg) {
+        if (!msg || typeof msg !== 'object') return null;
+        
+        const sanitized = Object.create(null);
+        
+        const validRoles = ['user', 'assistant', 'system'];
+        sanitized.role = validRoles.includes(msg.role) ? msg.role : 'user';
+        
+        if (typeof msg.content === 'string') {
+            let content = msg.content
+                .replace(/<script[^>]*>.*?<\/script>/gi, '')
+                .replace(/javascript:/gi, '')
+                .substring(0, 5000);
+            
+            sanitized.content = content;
+        } else {
+            return null;
+        }
+        
+        return sanitized;
+    }
+
     static getChat(id) {
+        const safeId = String(id).replace(/[^a-zA-Z0-9_-]/g, '').substring(0, 100);
+        if (!safeId) return null;
+        
         const chats = this.getAllChats();
-        return chats.find(c => c.id === id);
+        const chat = chats.find(c => c.id === safeId);
+        
+        if (!chat) return null;
+        return this.validateChatStructure(chat) ? chat : null;
     }
 
     static deleteChat(id) {
         try {
+            const safeId = String(id).replace(/[^a-zA-Z0-9_-]/g, '').substring(0, 100);
+            if (!safeId) return false;
+            
             let chats = this.getAllChats();
-            chats = chats.filter(c => c.id !== id);
+            const initialLength = chats.length;
+            
+            chats = chats.filter(c => c.id !== safeId);
+            
+            if (chats.length === initialLength) {
+                return false;
+            }
+            
             localStorage.setItem(STORAGE_KEY, JSON.stringify(chats));
             return true;
         } catch (e) {
@@ -233,22 +340,28 @@ class ChatStorage {
         }
     }
 
-    /**
-     * ✅ IMPROVED: Escape title before returning
-     */
     static getChatTitle(messages) {
-        if (!messages || messages.length === 0) return 'Chat mới';
-        const firstUserMessage = messages.find(m => m.role === 'user');
-        if (!firstUserMessage) return 'Chat mới';
+        if (!Array.isArray(messages) || messages.length === 0) {
+            return 'Chat mới';
+        }
         
-        let title = firstUserMessage.content.substring(0, 50);
-        if (firstUserMessage.content.length > 50) title += '...';
+        const firstUserMessage = messages.find(m => m && m.role === 'user');
+        if (!firstUserMessage || typeof firstUserMessage.content !== 'string') {
+            return 'Chat mới';
+        }
         
-        // Escape before returning
-        return escapeHtml(title);
+        let title = firstUserMessage.content
+            .replace(/[<>]/g, '')
+            .substring(0, 50)
+            .trim();
+        
+        if (firstUserMessage.content.length > 50) {
+            title += '...';
+        }
+        
+        return escapeHtml(title || 'Chat mới');
     }
 }
-
 // ============================================
 // Load Models
 // ============================================
