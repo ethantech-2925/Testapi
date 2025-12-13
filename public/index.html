@@ -5,71 +5,16 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="Content-Security-Policy" content="
         default-src 'self';
-        script-src 'self' https://cdn.tailwindcss.com;
-        style-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com;
+        script-src 'self';
+        style-src 'self';
         img-src 'self' data: https: blob:;
         font-src 'self' data:;
         connect-src 'self';
     ">
     <title>AI Chat Assistant</title>
-    
-    <!-- Use Tailwind CDN instead of local CSS -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    
-    <style>
-        /* Animations */
-        @keyframes bounce {
-            0%, 100% { transform: translateY(0); }
-            50% { transform: translateY(-5px); }
-        }
-
-        .animate-bounce {
-            animation: bounce 1s infinite;
-        }
-
-        @keyframes spin {
-            from { transform: rotate(0deg); }
-            to { transform: rotate(360deg); }
-        }
-
-        .animate-spin {
-            animation: spin 1s linear infinite;
-        }
-
-        @keyframes blink {
-            0%, 49% { opacity: 1; }
-            50%, 100% { opacity: 0; }
-        }
-
-        /* Typing cursor */
-        .typing-cursor {
-            display: inline-block;
-            width: 2px;
-            height: 1em;
-            background-color: currentColor;
-            margin-left: 2px;
-            animation: blink 1s infinite;
-        }
-
-        /* Sidebar transitions */
-        .sidebar {
-            transition: transform 0.3s ease;
-        }
-
-        .sidebar-hidden {
-            transform: translateX(-100%);
-        }
-
-        @media (max-width: 768px) {
-            .sidebar {
-                position: fixed;
-                z-index: 50;
-                height: 100vh;
-            }
-        }
-    </style>
+    <link rel="stylesheet" href="styles.css">
 </head>
-<body class="bg-gradient-to-br from-slate-50 to-slate-100 min-h-screen">
+<body>
     <div class="flex h-screen">
         <!-- Sidebar - Lịch sử chat -->
         <div id="sidebar" class="sidebar w-64 bg-white border-r border-slate-200 flex flex-col shadow-lg">
@@ -120,7 +65,7 @@
                             <p class="text-sm text-slate-600" id="current-chat-title">Chat mới</p>
                         </div>
                         <div class="flex items-center gap-2">
-                            <span class="text-slate-600 text-sm font-medium hidden md:block">Model:</span>
+                            <span class="text-slate-600 text-sm font-medium md:block hidden">Model:</span>
                             <select 
                                 id="model-select" 
                                 class="bg-blue-600 text-white px-3 py-2 rounded-lg text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-300 cursor-pointer"
@@ -173,7 +118,6 @@
         </div>
     </div>
 
-    <!-- External JavaScript -->
     <script src="app.js"></script>
 </body>
 </html>
