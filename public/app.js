@@ -22,7 +22,9 @@ let currentChatId = null;
 let isViewMode = false;
 const MAX_CHATS = 300;
 const STORAGE_KEY = 'ai_chat_history';
-
+let csrfToken = null;
+let csrfTokenExpiry = 0;
+const CSRF_TOKEN_REFRESH_INTERVAL = 30 * 60 * 1000; // 30 minutes
 // ============================================
 // ✅ CRITICAL FIX #1: Enhanced XSS Protection
 // ============================================
