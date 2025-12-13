@@ -92,7 +92,51 @@ function setTextContent(element, text) {
 // ============================================
 // Initialize DOM elements
 // ============================================
+// ============================================
+// ✅ CSRF Token Management
+// ============================================
 
+async function fetchCSRFToken() {
+    try {
+        const response = await fetch('/api/csrf-token', {
+            method: 'GET',
+            credentials: 'same-origin'
+        });
+
+        if (!response.ok) {
+            throw new Error('Failed to fetch CSRF token');
+        }
+
+        const data = await response.json();
+        
+        if (!data.csrfToken) {
+            throw new Error('No CSRF token in response');
+        }
+
+        csrfToken = data.csrfToken;
+        csrfTokenExpiry = Date.now() + CSRF_TOKEN_REFRESH_INTERVAL;
+        
+        console.log('✅ CSRF token fetched successfully');
+        return true;
+    } catch (err) {
+        console.error('❌ Failed to fetch CSRF token:', err);
+        return false;
+    }
+}
+
+function needsCSRFRefresh() {
+    return !csrfToken || Date.now() > csrfTokenExpiry;
+}
+
+async function ensureCSRFToken() {
+    if (needsCSRFRefresh()) {
+        const success = await fetchCSRFToken();
+        if (!success) {
+            throw new Error('Failed to obtain CSRF token');
+        }
+    }
+    return csrfToken;
+}
 function initElements() {
     messagesDiv = document.getElementById('messages');
     messagesContainer = document.getElementById('messages-container');
