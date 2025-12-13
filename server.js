@@ -45,7 +45,21 @@ const CONFIG = {
 // ============================================
 // 2. SECURITY MIDDLEWARE
 // ============================================
-
+// ✅ CSRF Token Endpoint
+app.get('/api/csrf-token', csrfProtection, (req, res) => {
+    try {
+        res.json({ 
+            csrfToken: req.csrfToken(),
+            timestamp: Date.now()
+        });
+    } catch (err) {
+        console.error('❌ CSRF token generation error:', err);
+        res.status(500).json({ 
+            error: 'Failed to generate CSRF token',
+            code: 'CSRF_ERROR'
+        });
+    }
+});
 // Enhanced Helmet configuration
 app.use(helmet({
   contentSecurityPolicy: {
@@ -263,7 +277,7 @@ function validateModel(model) {
 /**
  * Chat endpoint với full validation
  */
-app.post('/api/chat', async (req, res) => {
+app.post('/api/chat', csrfProtection, async (req, res) => {
   const startTime = Date.now();
 
   try {
@@ -412,7 +426,18 @@ app.use((err, req, res, next) => {
     code: 'SERVER_ERROR'
   });
 });
-
+// ✅ CSRF Error Handler (thêm TRƯỚC app.use((err, req, res, next) => {...})
+app.use((err, req, res, next) => {
+    if (err.code === 'EBADCSRFTOKEN') {
+        console.warn('⚠️  CSRF validation failed');
+        return res.status(403).json({ 
+            error: 'Invalid CSRF token. Please refresh the page.',
+            code: 'CSRF_INVALID',
+            needRefresh: true
+        });
+    }
+    next(err);
+});
 // ============================================
 // 6. START SERVER
 // ============================================
