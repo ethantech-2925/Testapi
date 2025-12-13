@@ -537,13 +537,57 @@ function createNewChat() {
     }
 }
 
-function loadChat(chatId) {
-    const chat = ChatStorage.getChat(chatId);
+ffunction loadChat(chatId) {
+    const safeChatId = String(chatId).replace(/[^a-zA-Z0-9_-]/g, '').substring(0, 100);
+    if (!safeChatId) {
+        console.error('Invalid chat ID');
+        return;
+    }
+    
+    const chat = ChatStorage.getChat(safeChatId);
     if (!chat) return;
 
-    currentChatId = chatId;
-    messages = [...chat.messages];
+    currentChatId = safeChatId;
+    
+    // ✅ Deep clone to prevent prototype pollution
+    try {
+        messages = JSON.parse(JSON.stringify(chat.messages));
+        
+        if (!Array.isArray(messages)) {
+            console.error('Invalid messages after clone');
+            messages = [];
+            return;
+        }
+        
+        messages = messages.filter(msg => ChatStorage.validateMessage(msg));
+        
+    } catch (e) {
+        console.error('Error cloning messages:', e);
+        messages = [];
+        return;
+    }
+    
     isViewMode = true;
+
+    messagesDiv.innerHTML = '';
+    emptyState = null;
+    
+    messages.forEach(msg => {
+        addMessage(msg.role, msg.content, false);
+    });
+
+    currentChatTitle.textContent = '📖 ' + ChatStorage.getChatTitle(chat.messages);
+    messageInput.disabled = true;
+    sendButton.disabled = true;
+    modelSelect.disabled = true;
+    viewModeNotice.classList.remove('hidden');
+    
+    renderChatHistory();
+
+    if (window.innerWidth < 768) {
+        document.getElementById('sidebar').classList.add('sidebar-hidden');
+    }
+}
 
     messagesDiv.innerHTML = '';
     emptyState = null;
@@ -808,12 +852,59 @@ async function sendMessage(content) {
 // Initialize Application
 // ============================================
 
-window.addEventListener('DOMContentLoaded', function() {
+window.addEventListener('DOMContentLoaded', async function() {
     initElements();
+    
+    // ✅ Fetch CSRF token first
+    console.log('🔒 Fetching CSRF token...');
+    const csrfSuccess = await fetchCSRFToken();
+    
+    if (!csrfSuccess) {
+        console.error('❌ Failed to initialize CSRF protection');
+        alert('Failed to initialize security. Please refresh the page.');
+        return;
+    }
+    
+    // ✅ Refresh CSRF token periodically
+    setInterval(async () => {
+        if (needsCSRFRefresh()) {
+            console.log('🔄 Refreshing CSRF token...');
+            await fetchCSRFToken();
+        }
+    }, 10 * 60 * 1000);
+    
     loadModels();
     renderChatHistory();
     createNewChat();
 
+    document.getElementById('new-chat-btn').addEventListener('click', createNewChat);
+    document.getElementById('mobile-menu-btn').addEventListener('click', toggleSidebar);
+
+    chatForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+        if (!isViewMode) {
+            const content = messageInput.value.trim();
+            if (content) sendMessage(content);
+        }
+    });
+
+    messageInput.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            if (!isViewMode) {
+                chatForm.dispatchEvent(new Event('submit'));
+            }
+        }
+    });
+});
+
+// ✅ CSRF refresh on page visibility
+document.addEventListener('visibilitychange', async function() {
+    if (!document.hidden && needsCSRFRefresh()) {
+        console.log('🔄 Page became visible, refreshing CSRF token...');
+        await fetchCSRFToken();
+    }
+});
     // Event listeners
     document.getElementById('new-chat-btn').addEventListener('click', createNewChat);
     document.getElementById('mobile-menu-btn').addEventListener('click', toggleSidebar);
