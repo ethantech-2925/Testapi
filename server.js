@@ -5,6 +5,8 @@ const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const cors = require('cors');
 const path = require('path');
+const csrf = require('csurf');
+const cookieParser = require('cookie-parser');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -13,28 +15,24 @@ const PORT = process.env.PORT || 3001;
 // 1. CONFIGURATION & VALIDATION
 // ============================================
 
-// Validate required environment variables
 if (!process.env.OPENROUTER_API_KEY) {
   console.error('❌ Missing OPENROUTER_API_KEY in .env');
   process.exit(1);
 }
 
-// Security constants
 const CONFIG = {
-  MAX_MESSAGES: 50,              // Giới hạn số messages trong 1 request
-  MAX_MESSAGE_LENGTH: 5000,      // Giới hạn độ dài mỗi message
-  MAX_TOTAL_CHARS: 30000,        // Giới hạn tổng ký tự tất cả messages
-  RATE_LIMIT_WINDOW: 60000,      // 1 phút
-  RATE_LIMIT_MAX: 15,            // 15 requests/phút (giảm từ 30)
-  REQUEST_BODY_LIMIT: '50kb',    // Giảm từ 100kb
+  MAX_MESSAGES: 50,
+  MAX_MESSAGE_LENGTH: 5000,
+  MAX_TOTAL_CHARS: 30000,
+  RATE_LIMIT_WINDOW: 60000,
+  RATE_LIMIT_MAX: 15,
+  REQUEST_BODY_LIMIT: '50kb',
   
-  // Whitelist models được phép sử dụng
- ALLOWED_MODELS: [
-  'z-ai/glm-4.5-air:free',           // ✅ FREE
-  'qwen/qwen2.5-vl-32b-instruct:free' // ✅ FREE
-],
+  ALLOWED_MODELS: [
+    'z-ai/glm-4.5-air:free',
+    'qwen/qwen2.5-vl-32b-instruct:free'
+  ],
   
-  // Roles hợp lệ
   VALID_ROLES: ['user', 'assistant', 'system']
 };
 
@@ -42,15 +40,14 @@ const CONFIG = {
 // 2. SECURITY MIDDLEWARE
 // ============================================
 
-// Enhanced Helmet configuration
 app.use(helmet({
   contentSecurityPolicy: {
     directives: {
       defaultSrc: ["'self'"],
-      scriptSrc: ["'self'", "https://cdn.tailwindcss.com"],
-      styleSrc: ["'self'", "'unsafe-inline'", "https://cdn.tailwindcss.com"],
+      scriptSrc: ["'self'"],
+      styleSrc: ["'self'"],
       imgSrc: ["'self'", "data:", "https:", "blob:"],
-      connectSrc: ["'self'", "https://openrouter.ai"],
+      connectSrc: ["'self'"],
       fontSrc: ["'self'", "data:"],
       objectSrc: ["'none'"],
       mediaSrc: ["'self'"],
@@ -68,10 +65,8 @@ app.use(helmet({
 // CORS Configuration
 const allowedOrigins = (process.env.ALLOWED_ORIGINS || '').split(',').filter(Boolean);
 
-// Production: must have ALLOWED_ORIGINS, or allow all for Render
 const corsOptions = {
   origin: function (origin, callback) {
-    // Render: cho phép requests từ cùng origin (không có origin header)
     if (!origin || allowedOrigins.length === 0) {
       return callback(null, true);
     }
@@ -79,14 +74,13 @@ const corsOptions = {
     if (allowedOrigins.includes(origin)) {
       callback(null, true);
     } else if (process.env.NODE_ENV !== 'production') {
-      // Development: cho phép tất cả
       callback(null, true);
     } else {
       callback(new Error('CORS not allowed'));
     }
   },
   methods: ['GET', 'POST'],
-  allowedHeaders: ['Content-Type'],
+  allowedHeaders: ['Content-Type', 'CSRF-Token'],
   credentials: true
 };
 
@@ -100,14 +94,14 @@ if (allowedOrigins.length > 0) {
   console.log('ℹ️  CORS: Allowing all origins (development mode)');
 }
 
-// Rate limiting với improved configuration
+// Rate limiting
 const limiter = rateLimit({
   windowMs: CONFIG.RATE_LIMIT_WINDOW,
   max: CONFIG.RATE_LIMIT_MAX,
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'Too many requests. Please try again later.' },
-  skip: (req) => req.path !== '/api/chat', // Chỉ áp dụng cho /api/chat
+  skip: (req) => req.path !== '/api/chat',
   handler: (req, res) => {
     console.warn('⚠️  Rate limit exceeded:', {
       ip: req.ip,
@@ -123,19 +117,30 @@ const limiter = rateLimit({
 
 app.use(limiter);
 
-// Body parser with size limit
+// Body parser
 app.use(express.json({ 
   limit: CONFIG.REQUEST_BODY_LIMIT,
   verify: (req, res, buf) => {
-    // Thêm raw body để có thể validate
     req.rawBody = buf.toString('utf8');
   }
 }));
 
+// ✅ CSRF Protection Setup
+app.use(cookieParser());
+
+const csrfProtection = csrf({ 
+  cookie: {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'strict',
+    maxAge: 3600000
+  }
+});
+
 // Static files
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Request logging middleware
+// Request logging
 app.use((req, res, next) => {
   if (req.path === '/api/chat' && req.method === 'POST') {
     console.log('📥 Chat request:', {
@@ -152,18 +157,13 @@ app.use((req, res, next) => {
 // 3. VALIDATION FUNCTIONS
 // ============================================
 
-/**
- * Validate và sanitize input messages
- */
 function validateMessages(messages) {
   const errors = [];
 
-  // Kiểm tra messages là array
   if (!Array.isArray(messages)) {
     return { valid: false, error: 'Messages must be an array' };
   }
 
-  // Kiểm tra số lượng messages
   if (messages.length === 0) {
     return { valid: false, error: 'Messages array cannot be empty' };
   }
@@ -177,35 +177,29 @@ function validateMessages(messages) {
 
   let totalChars = 0;
 
-  // Validate từng message
   for (let i = 0; i < messages.length; i++) {
     const msg = messages[i];
 
-    // Kiểm tra structure
     if (!msg || typeof msg !== 'object') {
       errors.push(`Message ${i}: Invalid format`);
       continue;
     }
 
-    // Kiểm tra role
     if (!msg.role || !CONFIG.VALID_ROLES.includes(msg.role)) {
       errors.push(`Message ${i}: Invalid role. Must be one of: ${CONFIG.VALID_ROLES.join(', ')}`);
     }
 
-    // Kiểm tra content
     if (typeof msg.content !== 'string') {
       errors.push(`Message ${i}: Content must be a string`);
       continue;
     }
 
-    // Kiểm tra độ dài content
     if (msg.content.length > CONFIG.MAX_MESSAGE_LENGTH) {
       errors.push(`Message ${i}: Content too long. Maximum ${CONFIG.MAX_MESSAGE_LENGTH} characters`);
     }
 
-    // Sanitize content - remove potential XSS
     msg.content = msg.content
-      .replace(/<script[^>]*>.*?<\/script>/gi, '') // Remove script tags
+      .replace(/<script[^>]*>.*?<\/script>/gi, '')
       .trim();
 
     if (msg.content.length === 0) {
@@ -215,7 +209,6 @@ function validateMessages(messages) {
     totalChars += msg.content.length;
   }
 
-  // Kiểm tra tổng độ dài
   if (totalChars > CONFIG.MAX_TOTAL_CHARS) {
     return { 
       valid: false, 
@@ -230,12 +223,9 @@ function validateMessages(messages) {
   return { valid: true };
 }
 
-/**
- * Validate model name
- */
 function validateModel(model) {
   if (!model) {
-    return { valid: true, model: CONFIG.ALLOWED_MODELS[0] }; // Default model
+    return { valid: true, model: CONFIG.ALLOWED_MODELS[0] };
   }
 
   if (typeof model !== 'string') {
@@ -256,16 +246,29 @@ function validateModel(model) {
 // 4. API ENDPOINTS
 // ============================================
 
-/**
- * Chat endpoint với full validation
- */
-app.post('/api/chat', async (req, res) => {
+// ✅ CSRF Token Endpoint
+app.get('/api/csrf-token', csrfProtection, (req, res) => {
+  try {
+    res.json({ 
+      csrfToken: req.csrfToken(),
+      timestamp: Date.now()
+    });
+  } catch (err) {
+    console.error('❌ CSRF token generation error:', err);
+    res.status(500).json({ 
+      error: 'Failed to generate CSRF token',
+      code: 'CSRF_ERROR'
+    });
+  }
+});
+
+// ✅ Chat endpoint with CSRF protection
+app.post('/api/chat', csrfProtection, async (req, res) => {
   const startTime = Date.now();
 
   try {
     const { model, messages } = req.body;
 
-    // 1. Validate messages
     const messageValidation = validateMessages(messages);
     if (!messageValidation.valid) {
       console.warn('⚠️  Invalid messages:', messageValidation.error);
@@ -275,7 +278,6 @@ app.post('/api/chat', async (req, res) => {
       });
     }
 
-    // 2. Validate model
     const modelValidation = validateModel(model);
     if (!modelValidation.valid) {
       console.warn('⚠️  Invalid model:', modelValidation.error);
@@ -293,7 +295,6 @@ app.post('/api/chat', async (req, res) => {
       totalChars: messages.reduce((sum, m) => sum + m.content.length, 0)
     });
 
-    // 3. Call OpenRouter API
     const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -305,29 +306,25 @@ app.post('/api/chat', async (req, res) => {
       body: JSON.stringify({
         model: selectedModel,
         messages,
-        // Thêm các params để kiểm soát chi phí
-        max_tokens: 1000,  // Giới hạn output
+        max_tokens: 1000,
         temperature: 0.7
       })
     });
 
     const data = await response.json();
 
-    // 4. Handle OpenRouter errors
     if (!response.ok) {
       console.error('❌ OpenRouter API error:', {
         status: response.status,
         error: data.error
       });
 
-      // Không leak chi tiết lỗi cho client
       return res.status(response.status).json({ 
         error: 'Failed to get AI response',
         code: 'API_ERROR'
       });
     }
 
-    // 5. Log success
     const duration = Date.now() - startTime;
     console.log('✅ Request completed:', {
       duration: `${duration}ms`,
@@ -335,11 +332,19 @@ app.post('/api/chat', async (req, res) => {
       tokensUsed: data.usage?.total_tokens || 'unknown'
     });
 
-    // 6. Return response
     res.json(data);
 
   } catch (err) {
     const duration = Date.now() - startTime;
+    
+    if (err.code === 'EBADCSRFTOKEN') {
+      console.warn('⚠️  CSRF token validation failed');
+      return res.status(403).json({ 
+        error: 'Invalid CSRF token. Please refresh the page.',
+        code: 'CSRF_INVALID',
+        needRefresh: true
+      });
+    }
     
     console.error('❌ Server error:', {
       duration: `${duration}ms`,
@@ -347,7 +352,6 @@ app.post('/api/chat', async (req, res) => {
       stack: process.env.NODE_ENV === 'development' ? err.stack : undefined
     });
 
-    // Generic error cho client
     res.status(500).json({ 
       error: 'Internal server error',
       code: 'SERVER_ERROR'
@@ -355,9 +359,7 @@ app.post('/api/chat', async (req, res) => {
   }
 });
 
-/**
- * Health check endpoint
- */
+// Health check
 app.get('/api/health', (req, res) => {
   res.json({ 
     status: 'ok',
@@ -366,9 +368,7 @@ app.get('/api/health', (req, res) => {
   });
 });
 
-/**
- * Models info endpoint
- */
+// Models info
 app.get('/api/models', (req, res) => {
   res.json({ 
     models: CONFIG.ALLOWED_MODELS,
@@ -376,9 +376,7 @@ app.get('/api/models', (req, res) => {
   });
 });
 
-/**
- * Serve frontend
- */
+// Serve frontend
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
@@ -386,6 +384,25 @@ app.get('/', (req, res) => {
 // ============================================
 // 5. ERROR HANDLING
 // ============================================
+
+// ✅ CSRF Error Handler
+app.use((err, req, res, next) => {
+  if (err.code === 'EBADCSRFTOKEN') {
+    console.warn('⚠️  CSRF validation failed:', {
+      path: req.path,
+      ip: req.ip,
+      timestamp: new Date().toISOString()
+    });
+    
+    return res.status(403).json({ 
+      error: 'Invalid CSRF token. Please refresh the page.',
+      code: 'CSRF_INVALID',
+      needRefresh: true
+    });
+  }
+  
+  next(err);
+});
 
 // 404 handler
 app.use((req, res) => {
@@ -418,12 +435,11 @@ app.listen(PORT, '0.0.0.0', () => {
   console.log('🚀 Server started successfully');
   console.log('===========================================');
   console.log(`📍 Port: ${PORT}`);
-  console.log(`🌐 Listening on 0.0.0.0:${PORT} (all interfaces)`);
+  console.log(`🌐 Listening on 0.0.0.0:${PORT}`);
   console.log(`🔒 Environment: ${process.env.NODE_ENV || 'development'}`);
+  console.log(`🔐 CSRF Protection: ENABLED`);
   console.log(`⚡ Rate limit: ${CONFIG.RATE_LIMIT_MAX} requests/${CONFIG.RATE_LIMIT_WINDOW/1000}s`);
   console.log(`🤖 Default model: ${CONFIG.ALLOWED_MODELS[0]}`);
-  console.log(`📊 Max messages: ${CONFIG.MAX_MESSAGES}`);
-  console.log(`📝 Max chars/message: ${CONFIG.MAX_MESSAGE_LENGTH}`);
   console.log('===========================================');
 });
 
