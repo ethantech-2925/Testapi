@@ -1,0 +1,668 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🎮 Máy Giả Lập Game Retro - Multi Platform</title>
+    <script src="https://unpkg.com/nostalgist@0.14.0"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+            color: #fff;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 30px;
+            animation: fadeInDown 0.6s ease;
+        }
+
+        h1 {
+            font-size: 3em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .subtitle {
+            font-size: 1.2em;
+            opacity: 0.9;
+        }
+
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 350px;
+            gap: 20px;
+            animation: fadeIn 0.8s ease;
+        }
+
+        .game-area {
+            background: rgba(255,255,255,0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+        }
+
+        .sidebar {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .card {
+            background: rgba(255,255,255,0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+        }
+
+        .card h2 {
+            font-size: 1.5em;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .platform-selector {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .platform-btn {
+            padding: 15px;
+            border: 2px solid rgba(255,255,255,0.3);
+            background: rgba(255,255,255,0.1);
+            color: white;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 14px;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+
+        .platform-btn:hover {
+            background: rgba(255,255,255,0.2);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        }
+
+        .platform-btn.active {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            border-color: #f5576c;
+        }
+
+        .upload-section {
+            text-align: center;
+            padding: 40px 20px;
+            border: 2px dashed rgba(255,255,255,0.3);
+            border-radius: 15px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-bottom: 20px;
+        }
+
+        .upload-section:hover {
+            border-color: rgba(255,255,255,0.6);
+            background: rgba(255,255,255,0.05);
+        }
+
+        .upload-icon {
+            font-size: 3em;
+            margin-bottom: 10px;
+        }
+
+        #fileInput {
+            display: none;
+        }
+
+        .browse-btn {
+            padding: 15px 40px;
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            border: none;
+            border-radius: 50px;
+            color: white;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(245, 87, 108, 0.4);
+        }
+
+        .browse-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(245, 87, 108, 0.6);
+        }
+
+        .browse-btn:active {
+            transform: translateY(0);
+        }
+
+        .sample-games {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .sample-games::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .sample-games::-webkit-scrollbar-track {
+            background: rgba(255,255,255,0.1);
+            border-radius: 10px;
+        }
+
+        .sample-games::-webkit-scrollbar-thumb {
+            background: rgba(255,255,255,0.3);
+            border-radius: 10px;
+        }
+
+        .game-item {
+            padding: 12px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 8px;
+            margin-bottom: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: 1px solid transparent;
+        }
+
+        .game-item:hover {
+            background: rgba(255,255,255,0.15);
+            transform: translateX(5px);
+            border-color: rgba(255,255,255,0.3);
+        }
+
+        .game-title {
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .game-info {
+            font-size: 0.85em;
+            opacity: 0.8;
+        }
+
+        .controls-guide {
+            font-size: 0.9em;
+            line-height: 1.8;
+        }
+
+        .control-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .control-row:last-child {
+            border-bottom: none;
+        }
+
+        .key {
+            background: rgba(255,255,255,0.2);
+            padding: 4px 10px;
+            border-radius: 5px;
+            font-family: monospace;
+            font-weight: bold;
+        }
+
+        #gameCanvas {
+            width: 100%;
+            border-radius: 10px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+            display: none;
+        }
+
+        #gameCanvas.active {
+            display: block;
+        }
+
+        .status-message {
+            text-align: center;
+            padding: 20px;
+            font-size: 1.2em;
+            opacity: 0.7;
+        }
+
+        .fullscreen-btn {
+            margin-top: 15px;
+            padding: 10px 25px;
+            background: rgba(255,255,255,0.2);
+            border: 1px solid rgba(255,255,255,0.3);
+            border-radius: 8px;
+            color: white;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .fullscreen-btn:hover {
+            background: rgba(255,255,255,0.3);
+        }
+
+        .history-item {
+            padding: 10px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 8px;
+            margin-bottom: 8px;
+            font-size: 0.9em;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .clear-history {
+            padding: 6px 12px;
+            background: rgba(255,87,108,0.3);
+            border: none;
+            border-radius: 5px;
+            color: white;
+            cursor: pointer;
+            font-size: 0.85em;
+            transition: all 0.3s ease;
+        }
+
+        .clear-history:hover {
+            background: rgba(255,87,108,0.5);
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes fadeInDown {
+            from {
+                opacity: 0;
+                transform: translateY(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @media (max-width: 968px) {
+            .main-content {
+                grid-template-columns: 1fr;
+            }
+
+            h1 {
+                font-size: 2em;
+            }
+
+            .platform-selector {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @media (max-width: 480px) {
+            .platform-selector {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+        }
+
+        .loading.active {
+            display: block;
+        }
+
+        .spinner {
+            border: 4px solid rgba(255,255,255,0.3);
+            border-top: 4px solid white;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 10px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .error-message {
+            display: none;
+            background: rgba(255,87,108,0.3);
+            border: 1px solid rgba(255,87,108,0.5);
+            border-radius: 10px;
+            padding: 15px;
+            margin-top: 15px;
+        }
+
+        .error-message.active {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🎮 Máy Giả Lập Game Retro</h1>
+            <p class="subtitle">Chơi game NES, SNES, Game Boy & Sega Genesis ngay trên trình duyệt</p>
+        </header>
+
+        <div class="main-content">
+            <!-- Game Area -->
+            <div class="game-area">
+                <div class="platform-selector">
+                    <button class="platform-btn active" data-platform="nes">🎮 NES</button>
+                    <button class="platform-btn" data-platform="snes">🎯 SNES</button>
+                    <button class="platform-btn" data-platform="gb">📱 Game Boy</button>
+                    <button class="platform-btn" data-platform="genesis">⚡ Genesis</button>
+                </div>
+
+                <div class="upload-section" id="uploadSection">
+                    <div class="upload-icon">📁</div>
+                    <h3>Tải lên ROM game của bạn</h3>
+                    <p style="opacity: 0.8; margin: 10px 0;">Hỗ trợ: .nes, .snes, .gb, .gbc, .bin, .md</p>
+                    <button class="browse-btn" id="browseBtn">Chọn File ROM</button>
+                    <input type="file" id="fileInput" accept=".nes,.snes,.sfc,.gb,.gbc,.bin,.md,.gen">
+                </div>
+
+                <div class="loading" id="loading">
+                    <div class="spinner"></div>
+                    <p>Đang tải game...</p>
+                </div>
+
+                <div id="gameContainer" style="display: none;">
+                    <canvas id="gameCanvas"></canvas>
+                    <div style="text-align: center;">
+                        <button class="fullscreen-btn" id="fullscreenBtn">🖥️ Fullscreen</button>
+                    </div>
+                </div>
+
+                <div class="error-message" id="errorMessage"></div>
+
+                <div class="status-message" id="statusMessage">
+                    👆 Chọn hệ máy và tải lên ROM để bắt đầu chơi
+                </div>
+            </div>
+
+            <!-- Sidebar -->
+            <div class="sidebar">
+                <!-- Controls Guide -->
+                <div class="card">
+                    <h2>⌨️ Phím điều khiển</h2>
+                    <div class="controls-guide">
+                        <div class="control-row">
+                            <span>Di chuyển</span>
+                            <span><span class="key">↑</span> <span class="key">↓</span> <span class="key">←</span> <span class="key">→</span></span>
+                        </div>
+                        <div class="control-row">
+                            <span>Nút A</span>
+                            <span><span class="key">Z</span></span>
+                        </div>
+                        <div class="control-row">
+                            <span>Nút B</span>
+                            <span><span class="key">X</span></span>
+                        </div>
+                        <div class="control-row">
+                            <span>Start</span>
+                            <span><span class="key">Enter</span></span>
+                        </div>
+                        <div class="control-row">
+                            <span>Select</span>
+                            <span><span class="key">Shift</span></span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Sample Games -->
+                <div class="card">
+                    <h2>🎲 Game mẫu</h2>
+                    <div class="sample-games">
+                        <div class="game-item" data-url="https://cdn.jsdelivr.net/gh/nesbox/emulator@master/games/flappybird.nes" data-platform="nes">
+                            <div class="game-title">Flappy Bird (NES)</div>
+                            <div class="game-info">Game giải trí nhẹ nhàng</div>
+                        </div>
+                        <div class="game-item" data-url="https://github.com/AleFer90/NES-mario/raw/master/mario.nes" data-platform="nes">
+                            <div class="game-title">Super Mario Bros</div>
+                            <div class="game-info">Huyền thoại từ Nintendo</div>
+                        </div>
+                        <p style="opacity: 0.7; font-size: 0.85em; margin-top: 15px;">
+                            💡 Lưu ý: Bạn cần có file ROM hợp pháp để chơi game
+                        </p>
+                    </div>
+                </div>
+
+                <!-- History -->
+                <div class="card">
+                    <h2>📜 Lịch sử</h2>
+                    <div id="historyList">
+                        <p style="opacity: 0.6; font-size: 0.9em;">Chưa có lịch sử</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentPlatform = 'nes';
+        let gameHistory = JSON.parse(localStorage.getItem('gameHistory') || '[]');
+
+        // Platform selector
+        document.querySelectorAll('.platform-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.platform-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                currentPlatform = btn.dataset.platform;
+                updateStatusMessage(`Đã chọn ${btn.textContent.trim()}`);
+            });
+        });
+
+        // File upload handlers
+        document.getElementById('browseBtn').addEventListener('click', () => {
+            document.getElementById('fileInput').click();
+        });
+
+        document.getElementById('uploadSection').addEventListener('click', (e) => {
+            if (e.target.id !== 'browseBtn') {
+                document.getElementById('fileInput').click();
+            }
+        });
+
+        document.getElementById('fileInput').addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                await loadGame(file);
+            }
+        });
+
+        // Sample games
+        document.querySelectorAll('.game-item').forEach(item => {
+            item.addEventListener('click', async () => {
+                const url = item.dataset.url;
+                const platform = item.dataset.platform;
+                currentPlatform = platform;
+                
+                // Update platform button
+                document.querySelectorAll('.platform-btn').forEach(b => b.classList.remove('active'));
+                document.querySelector(`[data-platform="${platform}"]`).classList.add('active');
+                
+                await loadGameFromURL(url);
+            });
+        });
+
+        // Fullscreen
+        document.getElementById('fullscreenBtn').addEventListener('click', () => {
+            const canvas = document.getElementById('gameCanvas');
+            if (canvas.requestFullscreen) {
+                canvas.requestFullscreen();
+            } else if (canvas.webkitRequestFullscreen) {
+                canvas.webkitRequestFullscreen();
+            } else if (canvas.msRequestFullscreen) {
+                canvas.msRequestFullscreen();
+            }
+        });
+
+        async function loadGame(file) {
+            showLoading();
+            hideError();
+            
+            try {
+                const platformConfig = getPlatformConfig();
+                
+                await Nostalgist[platformConfig.method]({
+                    rom: file,
+                    element: document.getElementById('gameCanvas'),
+                    ...platformConfig.options
+                });
+
+                addToHistory(file.name, currentPlatform);
+                showGame();
+                updateStatusMessage(`Đang chơi: ${file.name}`);
+            } catch (error) {
+                console.error('Lỗi:', error);
+                showError(`Không thể tải game: ${error.message}`);
+            } finally {
+                hideLoading();
+            }
+        }
+
+        async function loadGameFromURL(url) {
+            showLoading();
+            hideError();
+            
+            try {
+                const platformConfig = getPlatformConfig();
+                
+                await Nostalgist[platformConfig.method]({
+                    rom: url,
+                    element: document.getElementById('gameCanvas'),
+                    ...platformConfig.options
+                });
+
+                const gameName = url.split('/').pop();
+                addToHistory(gameName, currentPlatform);
+                showGame();
+                updateStatusMessage(`Đang chơi: ${gameName}`);
+            } catch (error) {
+                console.error('Lỗi:', error);
+                showError(`Không thể tải game từ URL: ${error.message}`);
+            } finally {
+                hideLoading();
+            }
+        }
+
+        function getPlatformConfig() {
+            const configs = {
+                nes: { method: 'nes', options: {} },
+                snes: { method: 'snes', options: {} },
+                gb: { method: 'gb', options: {} },
+                genesis: { method: 'sega', options: {} }
+            };
+            return configs[currentPlatform] || configs.nes;
+        }
+
+        function showLoading() {
+            document.getElementById('loading').classList.add('active');
+            document.getElementById('uploadSection').style.display = 'none';
+            document.getElementById('statusMessage').style.display = 'none';
+        }
+
+        function hideLoading() {
+            document.getElementById('loading').classList.remove('active');
+        }
+
+        function showGame() {
+            document.getElementById('gameContainer').style.display = 'block';
+            document.getElementById('gameCanvas').classList.add('active');
+        }
+
+        function showError(message) {
+            const errorEl = document.getElementById('errorMessage');
+            errorEl.textContent = message;
+            errorEl.classList.add('active');
+            document.getElementById('uploadSection').style.display = 'block';
+            document.getElementById('statusMessage').style.display = 'block';
+        }
+
+        function hideError() {
+            document.getElementById('errorMessage').classList.remove('active');
+        }
+
+        function updateStatusMessage(message) {
+            document.getElementById('statusMessage').textContent = message;
+        }
+
+        function addToHistory(gameName, platform) {
+            const historyItem = {
+                name: gameName,
+                platform: platform.toUpperCase(),
+                timestamp: new Date().toLocaleString('vi-VN')
+            };
+            
+            gameHistory.unshift(historyItem);
+            gameHistory = gameHistory.slice(0, 10); // Keep only last 10
+            localStorage.setItem('gameHistory', JSON.stringify(gameHistory));
+            updateHistoryDisplay();
+        }
+
+        function updateHistoryDisplay() {
+            const historyList = document.getElementById('historyList');
+            
+            if (gameHistory.length === 0) {
+                historyList.innerHTML = '<p style="opacity: 0.6; font-size: 0.9em;">Chưa có lịch sử</p>';
+                return;
+            }
+            
+            let html = '';
+            gameHistory.forEach(item => {
+                html += `
+                    <div class="history-item">
+                        <div>
+                            <div style="font-weight: bold;">${item.name}</div>
+                            <div style="font-size: 0.85em; opacity: 0.7;">${item.platform} • ${item.timestamp}</div>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            html += `<button class="clear-history" onclick="clearHistory()">🗑️ Xóa lịch sử</button>`;
+            historyList.innerHTML = html;
+        }
+
+        function clearHistory() {
+            if (confirm('Bạn có chắc muốn xóa lịch sử?')) {
+                gameHistory = [];
+                localStorage.removeItem('gameHistory');
+                updateHistoryDisplay();
+            }
+        }
+
+        // Initialize
+        updateHistoryDisplay();
+    </script>
+</body>
+</html>
