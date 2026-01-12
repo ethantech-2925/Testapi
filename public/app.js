@@ -1,6 +1,5 @@
 // ============================================
-// ✅ SECURITY FIXED VERSION - PART 1
-// Copy TOÀN BỘ file này vào public/app.js
+// ✅ SECURITY FIXED VERSION WITH /GAME COMMAND
 // ============================================
 
 // Global variables
@@ -84,7 +83,6 @@ function escapeHtml(text) {
         text = String(text);
     }
     
-    // ✅ FIX: Dùng DOM API - không thể bypass
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
@@ -95,15 +93,14 @@ function stripHtml(text) {
         text = String(text);
     }
     
-    // ✅ FIX: Strip ALL dangerous content
     return text
-        .replace(/<script[^>]*>.*?<\/script>/gi, '')  // Remove scripts
-        .replace(/<[^>]*>/g, '')                       // Remove ALL tags
-        .replace(/[<>"'`]/g, '')                       // Remove dangerous chars
-        .replace(/javascript:/gi, '')                  // Remove js: protocol
-        .replace(/on\w+\s*=/gi, '')                    // Remove event handlers
-        .replace(/&lt;/g, '')                          // Remove encoded <
-        .replace(/&gt;/g, '')                          // Remove encoded >
+        .replace(/<script[^>]*>.*?<\/script>/gi, '')
+        .replace(/<[^>]*>/g, '')
+        .replace(/[<>"'`]/g, '')
+        .replace(/javascript:/gi, '')
+        .replace(/on\w+\s*=/gi, '')
+        .replace(/&lt;/g, '')
+        .replace(/&gt;/g, '')
         .trim();
 }
 
@@ -286,7 +283,6 @@ class ChatStorage {
         sanitized.role = validRoles.includes(msg.role) ? msg.role : 'user';
         
         if (typeof msg.content === 'string') {
-            // ✅ Enhanced sanitization
             let content = msg.content
                 .replace(/<script[^>]*>.*?<\/script>/gi, '')
                 .replace(/javascript:/gi, '')
@@ -334,7 +330,6 @@ class ChatStorage {
         }
     }
 
-    // ✅ FIX #3: Enhanced Title Sanitization
     static getChatTitle(messages) {
         if (!Array.isArray(messages) || messages.length === 0) {
             return 'Chat mới';
@@ -345,7 +340,6 @@ class ChatStorage {
             return 'Chat mới';
         }
         
-        // ✅ Strip ALL HTML và dangerous content
         let title = firstUserMessage.content
             .replace(/<script[^>]*>.*?<\/script>/gi, '')
             .replace(/<[^>]*>/g, '')
@@ -363,7 +357,6 @@ class ChatStorage {
             title += '...';
         }
         
-        // ✅ Final escape
         return escapeHtml(title);
     }
 }
@@ -401,16 +394,6 @@ async function loadModels() {
 }
 
 // ============================================
-// END OF PART 1
-// Tiếp tục với PART 2
-// ============================================
-
-// ============================================
-// ✅ SECURITY FIXED VERSION - PART 2
-// Nối tiếp sau PART 1
-// ============================================
-
-// ============================================
 // ✅ FIXED: Render Chat History (NO innerHTML)
 // ============================================
 
@@ -431,7 +414,6 @@ function renderChatHistory() {
     chats.sort((a, b) => b.timestamp - a.timestamp);
 
     chats.forEach(chat => {
-        // ✅ FIX: Strip và escape title
         const rawTitle = ChatStorage.getChatTitle(chat.messages);
         const safeTitle = stripHtml(rawTitle);
         
@@ -516,6 +498,7 @@ function createNewChat() {
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
             </svg>
             <p>Bắt đầu cuộc trò chuyện</p>
+            <p class="text-sm mt-2">Gõ <span class="font-bold text-blue-600">/game</span> để chơi game!</p>
         </div>
     `;
     
@@ -743,11 +726,34 @@ function hideLoading() {
 }
 
 // ============================================
-// ✅ FIXED: Send Message with CSRF
+// ✅ FIXED: Send Message with /game command detection
 // ============================================
 
 async function sendMessage(content) {
     if (!content.trim() || isLoading || isViewMode) return;
+
+    // ✅ Check for /game command
+    const trimmedContent = content.trim().toLowerCase();
+    if (trimmedContent === '/game') {
+        addMessage('assistant', '🎮 Đang chuyển đến trang game...', false);
+        setTimeout(() => {
+            window.location.href = '/game.html';
+        }, 500);
+        return;
+    }
+
+    // ✅ Check for /help command
+    if (trimmedContent === '/help') {
+        const helpMessage = `🤖 **Các lệnh có sẵn:**
+
+/game - Chơi game Tic Tac Toe
+/help - Hiển thị trợ giúp này
+
+Hoặc bạn có thể chat bình thường với AI!`;
+        addMessage('assistant', helpMessage, false);
+        messageInput.value = '';
+        return;
+    }
 
     const MAX_LENGTH = 5000;
     if (content.length > MAX_LENGTH) {
@@ -928,50 +934,3 @@ if (typeof window !== 'undefined') {
         return null;
     };
 }
-
-// ============================================
-// ✅ Security Test Functions (Development Only)
-// ============================================
-
-function runSecurityTests() {
-    console.log('🔒 Running security tests...');
-    
-    // Test 1: escapeHtml
-    const test1 = escapeHtml('<script>alert(1)</script>');
-    console.assert(
-        test1 === '&lt;script&gt;alert(1)&lt;/script&gt;',
-        '✅ escapeHtml blocks script tags'
-    );
-    
-    // Test 2: Unicode bypass
-    const test2 = escapeHtml('\u003Cscript\u003E');
-    console.assert(
-        !test2.includes('<script>'),
-        '✅ escapeHtml blocks Unicode bypass'
-    );
-    
-    // Test 3: stripHtml
-    const test3 = stripHtml('<b>Hello</b> <script>evil</script>');
-    console.assert(
-        test3 === 'Hello',
-        '✅ stripHtml removes all tags'
-    );
-    
-    // Test 4: getChatTitle
-    const test4 = ChatStorage.getChatTitle([{
-        role: 'user',
-        content: '<img src=x onerror=alert(1)>'
-    }]);
-    console.assert(
-        !test4.includes('onerror'),
-        '✅ getChatTitle sanitizes dangerous content'
-    );
-    
-    console.log('✅ All security tests passed!');
-}
-
-// Run tests in development
-if (typeof window !== 'undefined' && window.location.hostname === 'localhost') {
-    window.runSecurityTests = runSecurityTests;
-    console.log('💡 Run runSecurityTests() in console to verify security');
-        }
